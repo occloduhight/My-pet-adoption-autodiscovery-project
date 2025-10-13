@@ -166,9 +166,10 @@ root_block_device {
     encrypted   = true 
   }
   user_data = templatefile("./jenkins_userdata.sh", {
-
-    region = "eu-west-3"
-  })
+  region     = var.region
+  nr_key     = var.nr_key
+  nr_acc_id  = var.nr_acc_id
+})
   metadata_options {
     http_tokens = "required"
 
@@ -192,6 +193,36 @@ resource "aws_acm_certificate" "acm-cert" {
     Name = "${local.name}-acm-cert"
   }
 }
+data "aws_route53_zone" "acp-zone" {
+  name         = var.domain
+  private_zone = false
+}
+
+# Fetch DNS Validation Records for ACM Certificate
+resource "aws_route53_record" "acm_validation_record" {
+  for_each = {
+    for dvo in aws_acm_certificate.acm-cert.domain_validation_options : dvo.domain_name => {
+      name   = dvo.resource_record_name
+      record = dvo.resource_record_value
+      type   = dvo.resource_record_type
+    }
+  }
+  # Create DNS Validation Record for ACM Certificate
+  zone_id         = data.aws_route53_zone.acp-zone.zone_id
+  allow_overwrite = true
+  name            = each.value.name
+  type            = each.value.type
+  ttl             = 60
+  records         = [each.value.record]
+  depends_on      = [aws_acm_certificate.acm-cert]
+}
+# Validate the ACM Certificate after DNS Record Creation
+resource "aws_acm_certificate_validation" "team1_cert_validation" {
+  certificate_arn         = aws_acm_certificate.acm-cert.arn
+  validation_record_fqdns = [for record in aws_route53_record.acm_validation_record : record.fqdn]
+  depends_on              = [aws_acm_certificate.acm-cert]
+}
+
 # Create Security group for the jenkins elb
 resource "aws_security_group" "jenkins-elb-sg" {
   name        = "${local.name}-jenkins-elb-sg"
@@ -225,7 +256,7 @@ resource "aws_elb" "elb_jenkins" {
     instance_protocol  = "HTTP"
     lb_port            = 443
     lb_protocol        = "HTTPS"
-    # ssl_certificate_id = aws_acm_certificate.acm-cert.arn
+    ssl_certificate_id = aws_acm_certificate.acm-cert.arn
   }
   health_check {
     healthy_threshold   = 3
@@ -393,21 +424,12 @@ resource "aws_security_group" "vault_elb" {
 
   # Allow HTTP (Vault UI) and HTTPS traffic
   ingress {
-    description = "Allow Vault UI traffic"
-    from_port   = 8200
-    to_port     = 8200
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
     description = "Allow HTTPS traffic"
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
   # Allow all outbound traffic
   egress {
     from_port   = 0
@@ -421,19 +443,46 @@ resource "aws_security_group" "vault_elb" {
   }
 }
 
-# -------------------------------
-# Vault Classic Load Balancer
-# -------------------------------
+# # Vault Classic Load Balancer
+# resource "aws_elb" "vault_elb" {
+#   name            = "${local.name}-vault-elb"
+#   subnets         = [aws_subnet.public_subnet_1.id]  
+#   security_groups = [aws_security_group.vault_elb.id]
+#   instances       = [aws_instance.vault.id]
+
+#   listener {
+#     instance_port     = 8200
+#     instance_protocol = "http"
+#     lb_port           = 443
+#     lb_protocol       = "https"
+#     ssl_certificate_id = aws_acm_certificate.acm-cert.arn
+#   }
+# health_check {
+#     healthy_threshold   = 2
+#     unhealthy_threshold = 2
+#     timeout             = 3
+#     target              = "TCP:8200"
+#     interval            = 30
+#   }
+#   cross_zone_load_balancing   = true
+#   idle_timeout                = 400
+#   connection_draining         = true
+#   connection_draining_timeout = 400
+#   tags = {
+#     Name = "${local.name}-vault-elb"
+#   }
+# }
+
 resource "aws_elb" "vault_elb" {
-  name            = "${local.name}-vault-elb"
-  subnets         = [aws_subnet.public_subnet_1.id]  # ✅ Must be in the same VPC
-  security_groups = [aws_security_group.vault_elb.id]
-  instances       = [aws_instance.vault.id]
+  name               = "${local.name}-vault-elb"
+  security_groups    = [aws_security_group.vault_elb_sg.id]
+  subnets            = [aws_subnet.public_subnet_1.id, aws_subnet.public_subnet_2.id]
+  cross_zone_load_balancing = true
 
   listener {
     instance_port     = 8200
     instance_protocol = "tcp"
-    lb_port           = 8200
+    lb_port           = 443
     lb_protocol       = "tcp"
   }
 
@@ -441,13 +490,35 @@ resource "aws_elb" "vault_elb" {
     target              = "TCP:8200"
     interval            = 30
     timeout             = 5
-    unhealthy_threshold = 2
     healthy_threshold   = 2
+    unhealthy_threshold = 2
   }
 
   tags = {
     Name = "${local.name}-vault-elb"
   }
+}
 
-  depends_on = [aws_instance.vault]
+# Create Route 53 record for vault server
+resource "aws_route53_record" "vault-record" {
+  zone_id = data.aws_route53_zone.acp-zone.id
+  name    = "vault.${var.domain}"
+  type    = "A"
+  alias {
+    name                   = aws_elb.vault_elb.dns_name
+    zone_id                = aws_elb.vault_elb.zone_id
+    evaluate_target_health = true
+  }
+}
+
+# Create Route 53 record for jenkins server
+resource "aws_route53_record" "jenkins" {
+  zone_id = data.aws_route53_zone.acp-zone.id
+  name    = "jenkins.${var.domain}"
+  type    = "A"
+  alias {
+    name                   = aws_elb.elb_jenkins.dns_name
+    zone_id                = aws_elb.elb_jenkins.zone_id
+    evaluate_target_health = true
+  }
 }

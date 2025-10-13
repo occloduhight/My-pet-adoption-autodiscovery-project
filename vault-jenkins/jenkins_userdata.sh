@@ -56,8 +56,8 @@ sudo ln -svf /usr/local/bin/aws /usr/bin/aws
 
 # install newrelic agent safely with environment variables
 curl -Ls https://download.newrelic.com/install/newrelic-cli/scripts/install.sh | bash && \
-sudo NEW_RELIC_API_KEY="${NEW_RELIC_API_KEY}" \
-     NEW_RELIC_ACCOUNT_ID="${NEW_RELIC_ACCOUNT_ID}" \
+sudo NEW_RELIC_API_KEY="${nr_key}" \
+     NEW_RELIC_ACCOUNT_ID="${nr_acc_id}" \
      NEW_RELIC_REGION="EU" \
      /usr/local/bin/newrelic install
 # set hostname to jenkins
