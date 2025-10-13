@@ -1,6 +1,8 @@
 variable "domain" {
-
-  description = "The domain name for our pet adoption project"
-  type        = string
-  default     = "selfdevops.space"
+  default     = "odochidevops.space"
 }
+variable "region" {
+  default = "eu-west-3"
+}
+variable "nr_key" {}
+variable "nr_acc_id" {}
