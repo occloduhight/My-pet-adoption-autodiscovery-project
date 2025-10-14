@@ -416,32 +416,32 @@ resource "aws_security_group" "vault_elb_sg" {
   }
 }
 
-# Security Group for Vault ELB
-resource "aws_security_group" "vault_elb" {
-  name        = "${local.name}-vault-elb-sg"
-  description = "Security group for Vault ELB"
-  vpc_id      = aws_vpc.vpc.id
+# # Security Group for Vault ELB
+# resource "aws_security_group" "vault_elb" {
+#   name        = "${local.name}-vault-elb-sg"
+#   description = "Security group for Vault ELB"
+#   vpc_id      = aws_vpc.vpc.id
 
-  # Allow HTTP (Vault UI) and HTTPS traffic
-  ingress {
-    description = "Allow HTTPS traffic"
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-  # Allow all outbound traffic
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+#   # Allow HTTP (Vault UI) and HTTPS traffic
+#   ingress {
+#     description = "Allow HTTPS traffic"
+#     from_port   = 443
+#     to_port     = 443
+#     protocol    = "tcp"
+#     cidr_blocks = ["0.0.0.0/0"]
+#   }
+#   # Allow all outbound traffic
+#   egress {
+#     from_port   = 0
+#     to_port     = 0
+#     protocol    = "-1"
+#     cidr_blocks = ["0.0.0.0/0"]
+#   }
 
-  tags = {
-    Name = "${local.name}-vault-elb-sg"
-  }
-}
+#   tags = {
+#     Name = "${local.name}-vault-elb-sg"
+#   }
+# }
 
 # # Vault Classic Load Balancer
 # resource "aws_elb" "vault_elb" {
