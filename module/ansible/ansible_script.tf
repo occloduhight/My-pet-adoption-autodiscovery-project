@@ -25,9 +25,9 @@ sudo chown -R ec2-user:ec2-user /home/ec2-user/.ssh/id_rsa
 sudo chmod 400 /home/ec2-user/.ssh/id_rsa
 
 # pull scripts from S3 bucket
-aws s3 cp s3://pet-adoption-state-bucket-1/ansible-script/prod-bashscript.sh /etc/ansible/prod-bashscript.sh
-aws s3 cp s3://pet-adoption-state-bucket-1/ansible-script/stage-bashscript.sh /etc/ansible/stage-bashscript.sh
-aws s3 cp s3://pet-adoption-state-bucket-1/ansible-script/deployment.yml /etc/ansible/deployment.yml
+aws s3 cp s3://auto-discovery-odochi2025/ansible-script/prod-bashscript.sh /etc/ansible/prod-bashscript.sh
+aws s3 cp s3://auto-discovery-odochi2025/ansible-script/stage-bashscript.sh /etc/ansible/stage-bashscript.sh
+aws s3 cp s3://auto-discovery-odochi2025/ansible-script/deployment.yml /etc/ansible/deployment.yml
 
 # create ansible variable file
 sudo bash -c 'echo "NEXUS_IP: ${var.nexus-ip}:8085" > /etc/ansible/ansible_vars_file.yml'

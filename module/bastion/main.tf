@@ -1,15 +1,8 @@
 # Security Group for Bastion Host
 resource "aws_security_group" "bastion_sg" {
   name        = "${var.name}-bastion-sg"
-  description = "Allow SSH inbound and outbound internet access"
+  description =  "Allow only outbound traffic"
   vpc_id      = var.vpc
-
-#   ingress {
-#     from_port   = 22
-#     to_port     = 22
-#     protocol    = "tcp"
-#     cidr_blocks = ["0.0.0.0/0"] # You can restrict this to your IP
-#   }
 
   egress {
     from_port   = 0
@@ -38,13 +31,13 @@ resource "aws_iam_role" "bastion_ssm_role" {
   })
 }
 # Attach SSM Core Policy for Session Manager Access
-resource "aws_iam_role_policy_attachment" "bastion_ssm_policy" {
+resource "aws_iam_role_policy_attachment" "bastion_ssm_core" {
   role       = aws_iam_role.bastion_ssm_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
 # create IAM instance profile
-resource "aws_iam_instance_profile" "ssm-profile" {
+resource "aws_iam_instance_profile" "bastion_ssm_profile" {
   name = "bastion-ssm-profile"
   role = aws_iam_role.bastion_ssm_role.name
 }
@@ -71,7 +64,7 @@ resource "aws_launch_template" "bastion_lt" {
   instance_type = "t2.micro"
   key_name      = var.keypair
 
-  iam_instance_profile {
+   iam_instance_profile {
     name = aws_iam_instance_profile.bastion_ssm_profile.name
   }
 

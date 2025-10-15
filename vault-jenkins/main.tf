@@ -1,5 +1,5 @@
 locals {
-    name = "odochi"
+    name = "vault-jenkins"
 }
 # VPC CREATION
 resource "aws_vpc" "vpc" {
@@ -18,47 +18,36 @@ resource "aws_internet_gateway" "igw" {
   }
 }
 # PUBLIC SUBNETS
-resource "aws_subnet" "public_subnet_1" {
+resource "aws_subnet" "pub_sub" {
   vpc_id                  = aws_vpc.vpc.id
   cidr_block              = "10.0.1.0/24"
   availability_zone       = "eu-west-3a"
   map_public_ip_on_launch = true
   tags = {
-    Name = "$(local.name)-public-subnet-1"
+    Name = "$(local.name)-pub_sub"
   }
 }
-
-resource "aws_subnet" "public_subnet_2" {
-  vpc_id                  = aws_vpc.vpc.id
-  cidr_block              = "10.0.2.0/24"
-  availability_zone       = "eu-west-3b"
-  map_public_ip_on_launch = true
-  tags = {
-    Name = "$(local.name)-public-subnet-2"
-  }
-}
-
 # PUBLIC ROUTE TABLE
-resource "aws_route_table" "public_rt" {
+resource "aws_route_table" "pub_rt" {
   vpc_id = aws_vpc.vpc.id
   route {
     cidr_block = "0.0.0.0/0"
     gateway_id = aws_internet_gateway.igw.id
   }
   tags = {
-    Name = "$(local.name)public-route-table"
+    Name = "$(local.name)-pub_rt"
   }
 }
 
 # ROUTE TABLE ASSOCIATIONS
 resource "aws_route_table_association" "public_association_1" {
-  subnet_id      = aws_subnet.public_subnet_1.id
-  route_table_id = aws_route_table.public_rt.id
+  subnet_id      = aws_subnet.pub_sub.id
+  route_table_id = aws_route_table.pub_rt.id
 }
 
 resource "aws_route_table_association" "public_association_2" {
-  subnet_id      = aws_subnet.public_subnet_2.id
-  route_table_id = aws_route_table.public_rt.id
+  subnet_id      = aws_subnet.pub_sub.id
+  route_table_id = aws_route_table.pub_rt.id
 }
 # Generate a new RSA private key (for SSH)
 resource "tls_private_key" "key" {
@@ -155,7 +144,7 @@ resource "aws_instance" "jenkins_server" {
   ami                         = data.aws_ami.redhat.id # redhat in eu-west-3)
   instance_type               = "t3.medium"
   key_name               = aws_key_pair.keypair.key_name   
-   subnet_id                   = aws_subnet.public_subnet_1.id   
+   subnet_id                   = aws_subnet.pub_sub.id   
   vpc_security_group_ids      = [aws_security_group.jenkins_sg.id]
   iam_instance_profile = aws_iam_instance_profile.jenkins_instance_profile.name
   associate_public_ip_address = true
@@ -167,8 +156,8 @@ root_block_device {
   }
   user_data = templatefile("./jenkins_userdata.sh", {
   region     = var.region
-  nr_key     = var.nr_key
-  nr_acc_id  = var.nr_acc_id
+    # nr_key     = var.nr_key
+    # nr_acc_id  = var.nr_acc_id
 })
   metadata_options {
     http_tokens = "required"
@@ -217,7 +206,7 @@ resource "aws_route53_record" "acm_validation_record" {
   depends_on      = [aws_acm_certificate.acm-cert]
 }
 # Validate the ACM Certificate after DNS Record Creation
-resource "aws_acm_certificate_validation" "team1_cert_validation" {
+resource "aws_acm_certificate_validation" "cert_validation" {
   certificate_arn         = aws_acm_certificate.acm-cert.arn
   validation_record_fqdns = [for record in aws_route53_record.acm_validation_record : record.fqdn]
   depends_on              = [aws_acm_certificate.acm-cert]
@@ -288,32 +277,32 @@ data "aws_ami" "ubuntu" {
     values = ["hvm"]
   }
 }
-# Security Group for Vault
-resource "aws_security_group" "vault_sg" {
-  name        = "vault-sg"
-  description = "Allow Vault and SSH traffic"
-  vpc_id      = aws_vpc.vpc.id
-  # Inbound: HTTP on port 
-  ingress {
-    from_port   = 8200
-    to_port     = 8200
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-    description = "Vault UI/API access"
-  }
- # Outbound: Allow all traffic (to EC2)
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-}
+# # Security Group for Vault
+# resource "aws_security_group" "vault_sg" {
+#   name        = "vault-sg"
+#   description = "Allow Vault and SSH traffic"
+#   vpc_id      = aws_vpc.vpc.id
+#   # Inbound: HTTP on port 
+#   ingress {
+#     from_port   = 8200
+#     to_port     = 8200
+#     protocol    = "tcp"
+#     cidr_blocks = ["0.0.0.0/0"]
+#     description = "Vault UI/API access"
+#   }
+#  # Outbound: Allow all traffic (to EC2)
+#   egress {
+#     from_port   = 0
+#     to_port     = 0
+#     protocol    = "-1"
+#     cidr_blocks = ["0.0.0.0/0"]
+#   }
+# }
 # create a vault server
 resource "aws_instance" "vault" {
   ami                         = data.aws_ami.ubuntu.id           
   instance_type               = "t2.medium"                      
-  subnet_id                   = aws_subnet.public_subnet_1.id            
+  subnet_id                   = aws_subnet.pub_sub.id           
   vpc_security_group_ids      = [aws_security_group.vault_sg.id] 
   key_name               = aws_key_pair.keypair.key_name
   associate_public_ip_address = true                             
@@ -325,7 +314,7 @@ resource "aws_instance" "vault" {
   }
   # User data script to install Jenkins and required tools
   user_data = templatefile("./vault.sh", {
-    region        = "eu-west-3",
+    region        = var.region,
     VAULT_VERSION = "1.18.3",
     key           = aws_kms_key.vault.id
   })
@@ -346,6 +335,30 @@ resource "aws_kms_key" "vault" {
     Name = "${local.name}-vault-kms-key"
   }
 }
+# Security Group for ELB to allow HTTP traffic
+resource "aws_security_group" "vault_sg" {
+  name        = "${local.name}-vault-sg"
+  description = "Allow HTTP traffic to server"
+  vpc_id      = aws_vpc.vpc.id
+  # Inbound: HTTP on port 80
+  ingress {
+    from_port   = 8200
+    to_port     = 8200
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  # Outbound: Allow all traffic (to EC2)
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  tags = {
+    Name = "${local.name}-vault-sg"
+  }
+}
+
 #creating and attaching an IAM role with SSM permissions to the vault instance.
 resource "aws_iam_role" "vault_ssm_role" {
   name = "${local.name}-ssm-vault-role2"
@@ -389,7 +402,7 @@ resource "aws_iam_role_policy_attachment" "vault_ssm_attachment" {
 }
 # create instance profile for vault
 resource "aws_iam_instance_profile" "vault_ssm_profile" {
-  name = "${local.name}-ssm-vault-instance-profile2"
+  name = "${local.name}-ssm-vault-instance-profile"
   role = aws_iam_role.vault_ssm_role.id
 }
 # Security Group for ELB to allow HTTP traffic
@@ -415,85 +428,31 @@ resource "aws_security_group" "vault_elb_sg" {
     Name = "${local.name}-vault-elb-sg"
   }
 }
-
-# # Security Group for Vault ELB
-# resource "aws_security_group" "vault_elb" {
-#   name        = "${local.name}-vault-elb-sg"
-#   description = "Security group for Vault ELB"
-#   vpc_id      = aws_vpc.vpc.id
-
-#   # Allow HTTP (Vault UI) and HTTPS traffic
-#   ingress {
-#     description = "Allow HTTPS traffic"
-#     from_port   = 443
-#     to_port     = 443
-#     protocol    = "tcp"
-#     cidr_blocks = ["0.0.0.0/0"]
-#   }
-#   # Allow all outbound traffic
-#   egress {
-#     from_port   = 0
-#     to_port     = 0
-#     protocol    = "-1"
-#     cidr_blocks = ["0.0.0.0/0"]
-#   }
-
-#   tags = {
-#     Name = "${local.name}-vault-elb-sg"
-#   }
-# }
-
-# # Vault Classic Load Balancer
-# resource "aws_elb" "vault_elb" {
-#   name            = "${local.name}-vault-elb"
-#   subnets         = [aws_subnet.public_subnet_1.id]  
-#   security_groups = [aws_security_group.vault_elb.id]
-#   instances       = [aws_instance.vault.id]
-
-#   listener {
-#     instance_port     = 8200
-#     instance_protocol = "http"
-#     lb_port           = 443
-#     lb_protocol       = "https"
-#     ssl_certificate_id = aws_acm_certificate.acm-cert.arn
-#   }
-# health_check {
-#     healthy_threshold   = 2
-#     unhealthy_threshold = 2
-#     timeout             = 3
-#     target              = "TCP:8200"
-#     interval            = 30
-#   }
-#   cross_zone_load_balancing   = true
-#   idle_timeout                = 400
-#   connection_draining         = true
-#   connection_draining_timeout = 400
-#   tags = {
-#     Name = "${local.name}-vault-elb"
-#   }
-# }
-
+# Create a new load balancer for vault
 resource "aws_elb" "vault_elb" {
   name               = "${local.name}-vault-elb"
   security_groups    = [aws_security_group.vault_elb_sg.id]
-  subnets            = [aws_subnet.public_subnet_1.id, aws_subnet.public_subnet_2.id]
+  subnets         = [aws_subnet.pub_sub.id]  # Use first available subnet
   cross_zone_load_balancing = true
 
-  listener {
-    instance_port     = 8200
-    instance_protocol = "tcp"
-    lb_port           = 443
-    lb_protocol       = "tcp"
+ listener {
+    instance_port      = 8200
+    instance_protocol  = "http"
+    lb_port            = 443
+    lb_protocol        = "https"
+    ssl_certificate_id = aws_acm_certificate.acm-cert.arn
   }
 
   health_check {
     target              = "TCP:8200"
     interval            = 30
-    timeout             = 5
+    timeout             = 3
     healthy_threshold   = 2
     unhealthy_threshold = 2
   }
+  instances = [aws_instance.vault.id]
 
+  depends_on = [aws_acm_certificate_validation.cert_validation]
   tags = {
     Name = "${local.name}-vault-elb"
   }

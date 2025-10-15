@@ -34,8 +34,6 @@ resource "aws_security_group" "nexus_sg" {
     Name = "${var.name}-nexus-sg"
   }
 }
-
-
 # Security Group for Load Balancer
 resource "aws_security_group" "lb_sg" {
   name        = "${var.name}-lb-sg"
@@ -61,18 +59,18 @@ resource "aws_security_group" "lb_sg" {
     Name = "${var.name}-lb-sg"
   }
 }
-# LOAD BALANCER + ROUTE53 DNS RECORD
+# LOAD BALANCER
 resource "aws_elb" "elb_nexus" {
   name            = "${var.name}-nexus-elb"
   security_groups = [aws_security_group.lb_sg.id]
-  subnets            = [aws_subnet.public_subnet_1.id, aws_subnet.public_subnet_2.id]
+  subnets = var.subnets
 
   listener {
     instance_port      = 8081
     instance_protocol  = "HTTP"
     lb_port            = 443
     lb_protocol        = "HTTPS"
-    ssl_certificate_id = aws_acm_certificate.acm-cert.arn
+    ssl_certificate_id = var.certificate
   }
   health_check {
     healthy_threshold   = 3
@@ -92,9 +90,10 @@ resource "aws_elb" "elb_nexus" {
     Name = "${var.name}-nexus-elb"
   }
 }
-
+# Create a DNS record for the ELB
 resource "aws_route53_record" "nexus_record" {
- zone_id = data.aws_route53_zone.acp-zone.id
+ zone_id = var.hosted_zone_id
+
   name    = "nexus.${var.domain_name}"
   type    = "A"
 
@@ -121,12 +120,12 @@ resource "aws_iam_role" "nexus_role" {
     Name = "${var.name}-nexus-role"
   }
 }
-
+# nexus IAM profile
 resource "aws_iam_instance_profile" "nexus_profile" {
   name = "${var.name}-nexus-profile"
   role = aws_iam_role.nexus_role.name
 }
-
+# SSM permission
 resource "aws_iam_role_policy_attachment" "ssm_access" {
   role       = aws_iam_role.nexus_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
