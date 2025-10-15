@@ -17,11 +17,14 @@
 #   description = "The public IP address of the bastion instance"
 # }
 
-output "bastion_public_ip" {
-  description = "Public IP address of the running Bastion instance"
-  value       = try(data.aws_instances.bastion_instances.public_ips[0], null)
-}
+# output "bastion_public_ip" {
+#   description = "Public IP address of the running Bastion instance"
+#   value       = try(data.aws_instances.bastion_instances.public_ips[0], null)
+# }
 output "bastion_sg" {
   description = "ID of the Bastion Host Security Group"
   value       = aws_security_group.bastion_sg.id
+}
+output "bastion_sg_id" {
+  value = aws_security_group.bastion_sg.id
 }
