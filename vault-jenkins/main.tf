@@ -1,5 +1,5 @@
 locals {
-    name = "vault-jenkins"
+    name = "odochi"
 }
 # VPC CREATION
 resource "aws_vpc" "vpc" {
@@ -154,10 +154,16 @@ root_block_device {
     volume_type = "gp3" 
     encrypted   = true 
   }
-  user_data = templatefile("./jenkins_userdata.sh", {
-  region     = var.region
-    # nr_key     = var.nr_key
-    # nr_acc_id  = var.nr_acc_id
+#   user_data = base64encode(templatefile("${path.module}/userdata.sh", {
+#   region           = var.region,
+#   newrelic_license = var.newrelic_license,
+#   nexus_ip         = module.nexus.nexus_ip
+# }))
+
+    user_data = templatefile("./jenkins_userdata.sh", {
+    region     = var.region
+    nr_key     = var.nr_key
+    nr_acc_id  = var.nr_acc_id
 })
   metadata_options {
     http_tokens = "required"
@@ -238,7 +244,7 @@ resource "aws_security_group" "jenkins-elb-sg" {
 resource "aws_elb" "elb_jenkins" {
   name            = "elb-jenkins"
   security_groups = [aws_security_group.jenkins-elb-sg.id] 
-  subnets         = [ aws_subnet.public_subnet_1.id ]
+  subnets         = [ aws_subnet.pub_sub.id ]
 
   listener {
     instance_port      = 8080
@@ -480,4 +486,14 @@ resource "aws_route53_record" "jenkins" {
     zone_id                = aws_elb.elb_jenkins.zone_id
     evaluate_target_health = true
   }
+}
+
+resource "aws_iam_role_policy_attachment" "ssm_core_jenkins" {
+  role       = aws_iam_role.jenkins_ec2_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+resource "aws_iam_role_policy_attachment" "admin_access_jenkins" {
+  role       = aws_iam_role.jenkins_ec2_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
 }
