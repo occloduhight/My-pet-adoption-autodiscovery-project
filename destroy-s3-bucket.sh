@@ -54,3 +54,41 @@ aws s3api delete-bucket \
   --profile "$AWS_PROFILE"
 
 echo "Bucket $BUCKET_NAME deleted successfully."
+#!/bin/bash
+
+# set -e
+
+# # -----------------------------
+# # Destroy Jenkins and Vault Terraform infrastructure
+# # -----------------------------
+# echo "Deleting Jenkins and Vault servers..."
+# cd vault-jenkins
+# terraform init
+# terraform destroy -auto-approve
+
+# # -----------------------------
+# # Delete S3 bucket
+# # -----------------------------
+# BUCKET_NAME="auto-discovery-odochi2025"
+# AWS_REGION="eu-west-3"
+
+# echo "Deleting all objects in $BUCKET_NAME. This process is irreversible..."
+
+# # Delete all objects recursively
+# aws s3 rm "s3://$BUCKET_NAME" --recursive --region "$AWS_REGION"
+
+# # Delete all versions if bucket is versioned
+# VERSIONS=$(aws s3api list-object-versions --bucket "$BUCKET_NAME" --region "$AWS_REGION" --output text)
+
+# if [ -n "$VERSIONS" ]; then
+#   echo "Bucket is versioned. Deleting all object versions and delete markers..."
+#   while read -r KEY VERSION_ID REST; do
+#     aws s3api delete-object --bucket "$BUCKET_NAME" --key "$KEY" --version-id "$VERSION_ID" --region "$AWS_REGION"
+#   done <<< "$VERSIONS"
+# fi
+
+# # Finally, delete the bucket itself
+# echo "Deleting bucket: $BUCKET_NAME..."
+# aws s3api delete-bucket --bucket "$BUCKET_NAME" --region "$AWS_REGION"
+
+# echo "Bucket $BUCKET_NAME deleted successfully."
