@@ -113,3 +113,17 @@ module "nexus" {
   hosted_zone_id = data.aws_route53_zone.zone.id
   domain_name    = var.domain_name
 }
+
+module "sonarqube" {
+  source         = "./module/sonarqube"
+  name           = local.name
+  vpc            = module.vpc.vpc_id
+  # vpc_cidr_block = "10.0.0.0/16"
+  keypair        = module.vpc.public_key
+  subnet_id      = module.vpc.pub_sub1_id
+  subnets        = module.vpc.pub_sub1_id
+  certificate    = aws_acm_certificate_validation.cert_validation.certificate_arn
+  # certificate    = data.aws_acm_certificate.cert.arn
+  hosted_zone_id = data.aws_route53_zone.zone.id
+  domain_name    = var.domain_name
+}
