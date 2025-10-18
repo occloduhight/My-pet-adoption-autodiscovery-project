@@ -91,10 +91,18 @@ resource "aws_iam_instance_profile" "ansible-profile" {
   name = "ansible-discovery-profile"
   role = aws_iam_role.ansible-role.name
 }
-resource "null_resource" "ansible-setup" {
-  provisioner "local-exec" {
-    command = <<EOT
-      aws s3 cp --recursive ${path.module}/script/ s3://pet-adoption-state-bucket-1/ansible-script/ 
-    EOT
-  } 
-}
+# resource "null_resource" "ansible-setup" {
+#   provisioner "local-exec" {
+#     command = <<EOT
+#       aws s3 cp --recursive ${path.module}/script/ s3://auto-discovery-odochi2025/ansible-script/ 
+#     EOT
+#   } 
+# }
+# resource "null_resource" "ansible-setup" {
+#   provisioner "local-exec" {
+#     command = <<EOT
+#       aws s3 cp --recursive ${path.module}/scripts/ s3://auto-discovery-odochi2025/ansible-scripts/
+#     EOT
+#   } 
+# }
+

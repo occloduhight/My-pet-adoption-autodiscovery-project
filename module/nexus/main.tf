@@ -63,7 +63,7 @@ resource "aws_security_group" "lb_sg" {
 resource "aws_elb" "elb_nexus" {
   name            = "${var.name}-nexus-elb"
   security_groups = [aws_security_group.lb_sg.id]
-  subnets = var.subnets
+  subnets         = var.subnets
 
   listener {
     instance_port      = 8081
@@ -163,19 +163,35 @@ resource "aws_instance" "nexus_server" {
   }
 }
 
-resource "null_resource" "update_jenkins" {
-  depends_on = [aws_instance.nexus_server]
+# resource "null_resource" "update_jenkins" {
+#   depends_on = [aws_instance.nexus_server]
 
-  provisioner "local-exec" {
-    command = <<-EOF
-#!/bin/bash
-sudo cat <<EOT>> /etc/docker/daemon.json
-  {
-    "insecure-registries" : ["${aws_instance.nexus_server.public_ip}:8085"]
-  }
-EOT
-sudo systemctl restart docker
-EOF
-  interpreter = [ "bash", "-c" ]
-  } 
-}
+#   provisioner "local-exec" {
+#     command = <<-EOF
+# #!/bin/bash
+# sudo cat <<EOT>> /etc/docker/daemon.json
+#   {
+#     "insecure-registries" : ["${aws_instance.nexus_server.public_ip}:8085"]
+#   }
+# EOT
+# sudo systemctl restart docker
+# EOF
+#   interpreter = [ "bash", "-c" ]
+#   } 
+# }
+# # copy the nexus ip on the jenkins server
+# resource "null_resource" "update_jenkins_server" {
+#   depends_on = [aws_instance.nexus_server]
+#   provisioner "local-exec" {
+#     command = <<-EOF
+# #!/bin/bash
+# sudo cat <<EOT>> /etc/docker/daemon.json
+#   {
+#     "insecure-registries" : ["${aws_instance.nexus_server.public_ip}:8085"]
+#   }
+# EOT
+# sudo systemctl restart docker
+# EOF
+#   interpreter = [ "bash", "-c" ]
+#   } 
+# }
