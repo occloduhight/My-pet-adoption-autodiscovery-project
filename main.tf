@@ -127,3 +127,19 @@ module "sonarqube" {
   hosted_zone_id = data.aws_route53_zone.zone.id
   domain_name    = var.domain_name
 }
+
+
+
+module "docker" {
+  source     = "./module/docker"
+  name       = local.name
+  vpc_id     = module.vpc.vpc_id
+  subnet_id  = module.vpc.pub_sub1_id
+  keypair    = module.vpc.public_key
+  region     = var.region
+  nexus_ip   = module.nexus.nexus_ip 
+  # nexus_ip   = var.nexus_ip
+  nr_key     = var.nr_key
+  nr_acc_id  = var.nr_acc_id
+}
+
