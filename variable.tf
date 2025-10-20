@@ -5,4 +5,9 @@ variable "domain_name" {}
   variable "region" {}
   
   
+variable "certificate_arn" {}
+  
+
+variable "hosted_zone_id" {}
+  
 

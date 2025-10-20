@@ -128,8 +128,6 @@ module "sonarqube" {
   domain_name    = var.domain_name
 }
 
-
-
 module "docker" {
   source     = "./module/docker"
   name       = local.name
@@ -142,4 +140,7 @@ module "docker" {
   nr_key     = var.nr_key
   nr_acc_id  = var.nr_acc_id
 }
+
+
+
 

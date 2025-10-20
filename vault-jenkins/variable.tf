@@ -11,3 +11,6 @@ variable "region" {}
 #   description = "Public IP of the Nexus server for configuring Docker insecure registry"
 #   type        = string
 # }
+variable "certificate_arn" {}
+variable "hosted_zone_id" {}
+
