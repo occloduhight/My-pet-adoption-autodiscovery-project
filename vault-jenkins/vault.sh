@@ -5,7 +5,7 @@ set -e
 sudo apt update -y
 sudo apt install -y unzip wget jq
 # Install Vault
-VAULT_VERSION=""1.18.3""
+VAULT_VERSION="1.18.3"
 # Download Vault binary
 wget https://releases.hashicorp.com/vault/${VAULT_VERSION}/vault_${VAULT_VERSION}_linux_amd64.zip
 # Unzip the Vault binary and move it to /usr/local/bin
@@ -42,7 +42,7 @@ EOF
 sudo chown vault:vault /etc/vault.d/vault.hcl
 sudo chmod 640 /etc/vault.d/vault.hcl
 # Create systemd service file for Vault
-at <<EOF | sudo tee /etc/systemd/system/vault.service
+cat <<EOF | sudo tee /etc/systemd/system/vault.service
 [Unit]
 Description=HashiCorp Vault
 After=network.target
@@ -76,7 +76,7 @@ export VAULT_ADDR='http://127.0.0.1:8200'
 # Initialize Vault
 touch /home/ubuntu/vault_init.log
 vault operator init > /home/ubuntu/vault_init.log
-grep -o 'hvs\.[A-Za-z0-9]\{24\}' /home/ubuntu/vault_init.log > /home/ubuntu/token.txt
+sudo grep -o 'hvs\.[A-Za-z0-9]*' /home/ubuntu/vault_init.log | head -n 1 > /home/ubuntu/token.txt
 TOKEN=$(</home/ubuntu/token.txt)
 # Login to Vault
 vault login $TOKEN
@@ -84,11 +84,16 @@ vault login $TOKEN
 vault secrets enable -path=secret kv-v2  #directory to store secrets on the vault server
 
 # Store database credentials in Vault
-vault kv put secret/database \
-  username="db_admin" \
-  password="admin123" \
+# vault kv put secret/database \
+#   username="db_admin" \
+#   password="admin123" \
+# # Set hostname to Vault
+#   sudo hostnamectl set-hostname Vault
+
+vault kv put secret/database username="db_admin" password="admin123"
+
 # Set hostname to Vault
-  sudo hostnamectl set-hostname Vault
+sudo hostnamectl set-hostname Vault
 
 echo "Vault installation complete!"
 echo "Database credentials stored in Vault path: secret/database"
