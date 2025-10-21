@@ -1,9 +1,9 @@
 variable "name" {}
 variable "vpc" {}
-variable "bastion_key" {}
+variable "bastion_sg" {}
 variable "keypair" {}
 variable "subnet_id" {}
-variable "private-key" {}
-variable "nexus-ip" {}
-variable "nr-key" {}
-variable "nr-acc-id" {}
+variable "private_key" {}
+variable "nexus_ip" {}
+variable "nr_key" {}
+variable "nr_acc_id" {}
