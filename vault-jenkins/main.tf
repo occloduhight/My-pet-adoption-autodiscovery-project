@@ -7,24 +7,24 @@ resource "aws_vpc" "vpc" {
   enable_dns_support   = true
   enable_dns_hostnames = true
   tags = {
-    Name = "$(local.name)-vpc"
+    Name = "${local.name}-vpc"
   }
 }
 # INTERNET GATEWAY
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.vpc.id
   tags = {
-    Name = "$(local.name)-igw"
+    Name = "${local.name}-igw"
   }
 }
-# PUBLIC SUBNETS
+# create public subnet 1
 resource "aws_subnet" "pub_sub" {
-  vpc_id                  = aws_vpc.vpc.id
-  cidr_block              = "10.0.1.0/24"
-  availability_zone       = "eu-west-3a"
-  map_public_ip_on_launch = true
+  vpc_id            = aws_vpc.vpc.id
+  cidr_block        = "10.0.1.0/24"
+  availability_zone = "eu-west-3a"
+
   tags = {
-    Name = "$(local.name)-pub_sub"
+    Name = "${local.name}-pub_sub"
   }
 }
 # PUBLIC ROUTE TABLE
@@ -35,7 +35,7 @@ resource "aws_route_table" "pub_rt" {
     gateway_id = aws_internet_gateway.igw.id
   }
   tags = {
-    Name = "$(local.name)-pub_rt"
+    Name = "${local.name}-pub_rt"
   }
 }
 
@@ -45,10 +45,10 @@ resource "aws_route_table_association" "public_association_1" {
   route_table_id = aws_route_table.pub_rt.id
 }
 
-resource "aws_route_table_association" "public_association_2" {
-  subnet_id      = aws_subnet.pub_sub.id
-  route_table_id = aws_route_table.pub_rt.id
-}
+# resource "aws_route_table_association" "public_association_2" {
+#   subnet_id      = aws_subnet.pub_sub.id
+#   route_table_id = aws_route_table.pub_rt.id
+# }
 # Generate a new RSA private key (for SSH)
 resource "tls_private_key" "key" {
   algorithm = "RSA"
@@ -70,7 +70,7 @@ resource "local_file" "private_key_pem" {
 # IAM ROLE AND INSTANCE PROFILE
 # Create IAM Role for EC2 with SSM and Admin permissions
 resource "aws_iam_role" "jenkins_ec2_role" {
-  name = "jenkins-ec2-role"
+  name = "${local.name}-jenkins-ec2-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -87,15 +87,18 @@ resource "aws_iam_instance_profile" "jenkins_instance_profile" {
   name = "jenkins-ec2-profile"
   role = aws_iam_role.jenkins_ec2_role.name
 }
+# data "aws_iam_instance_profile" "jenkins_instance_profile" {
+#   name = "jenkins-ec2-profile"
+# }
 # Attach AmazonSSMManagedInstanceCore policy
 resource "aws_iam_role_policy_attachment" "ssm_core" {
-  role = aws_iam_role.vault_ssm_role.name
+ role       = aws_iam_role.jenkins_ec2_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
 # Attach AdministratorAccess policy
 resource "aws_iam_role_policy_attachment" "admin_access" {
-  role = aws_iam_role.vault_ssm_role.name
+  role       = aws_iam_role.jenkins_ec2_role.name
   policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
 }
 
@@ -139,44 +142,83 @@ data "aws_ami" "redhat" {
 
   owners = ["309956199498"] # Red Hat official AWS account ID
 }
+# # Jenkins EC2 Instance
+# resource "aws_instance" "jenkins_server" {
+#   ami                         = data.aws_ami.redhat.id # redhat in eu-west-3)
+#   instance_type               = "t3.medium"
+#   key_name               = aws_key_pair.keypair.key_name   
+#    subnet_id                   = aws_subnet.pub_sub.id   
+#   vpc_security_group_ids      = [aws_security_group.jenkins_sg.id]
+#   iam_instance_profile = aws_iam_instance_profile.jenkins_instance_profile.name
+#   associate_public_ip_address = true
+
+# root_block_device {
+#     volume_size = 20    
+#     volume_type = "gp3" 
+#     encrypted   = true 
+#   }
+#     user_data = templatefile("./jenkins_userdata.sh", {
+#     region          = var.region
+#     nr_key          = var.nr_key
+#     nr_acc_id       = var.nr_acc_id
+#     RELEASE_VERSION = "8"
+#   })
+
+# #   user_data = base64encode(templatefile("${path.module}/userdata.sh", {
+# #   region           = var.region,
+# #   newrelic_license = var.newrelic_license,
+# #   nexus_ip         = module.nexus.nexus_ip
+# # }))
+
+# #     user_data = templatefile("./jenkins_userdata.sh", {
+# #     region     = var.region
+# #     nr_key     = var.nr_key
+# #     nr_acc_id  = var.nr_acc_id
+# # })
+#   metadata_options {
+#     http_tokens = "required"
+
+#   }
+
+# tags = {
+#     Name = "${local.name}-Jenkins-Server"
+#   }
+# }
+
 # Jenkins EC2 Instance
 resource "aws_instance" "jenkins_server" {
-  ami                         = data.aws_ami.redhat.id # redhat in eu-west-3)
+  ami                         = data.aws_ami.redhat.id  # Red Hat AMI in eu-west-3
   instance_type               = "t3.medium"
-  key_name               = aws_key_pair.keypair.key_name   
-   subnet_id                   = aws_subnet.pub_sub.id   
+  key_name                    = aws_key_pair.keypair.key_name
+  subnet_id                   = aws_subnet.pub_sub.id
   vpc_security_group_ids      = [aws_security_group.jenkins_sg.id]
-  iam_instance_profile = aws_iam_instance_profile.jenkins_instance_profile.name
+  iam_instance_profile        = aws_iam_instance_profile.jenkins_instance_profile.name
   associate_public_ip_address = true
 
-root_block_device {
-    volume_size = 20    
-    volume_type = "gp3" 
-    encrypted   = true 
+  root_block_device {
+    volume_size = 20
+    volume_type = "gp3"
+    encrypted   = true
   }
-#   user_data = base64encode(templatefile("${path.module}/userdata.sh", {
-#   region           = var.region,
-#   newrelic_license = var.newrelic_license,
-#   nexus_ip         = module.nexus.nexus_ip
-# }))
 
-    user_data = templatefile("./jenkins_userdata.sh", {
-    region     = var.region
-    nr_key     = var.nr_key
-    nr_acc_id  = var.nr_acc_id
-})
+  user_data = templatefile("./jenkins_userdata.sh", {
+    region          = var.region
+    nr_key          = var.nr_key
+    nr_acc_id       = var.nr_acc_id
+    RELEASE_VERSION = "8"
+  })
+
   metadata_options {
     http_tokens = "required"
-
   }
 
-tags = {
-    Name = "$(local.name)-Jenkins-Server"
+  tags = {
+    Name = "${local.name}-Jenkins-Server"
   }
 }
 
 # Create ACM certificate with DNS validation
-resource "aws_acm_certificate" "acm-cert" {
+resource "aws_acm_certificate" "acm_cert" {
   domain_name               = var.domain
   subject_alternative_names = ["*.${var.domain}"]
   validation_method         = "DNS"
@@ -185,10 +227,10 @@ resource "aws_acm_certificate" "acm-cert" {
   }
 
   tags = {
-    Name = "${local.name}-acm-cert"
+    Name = "${local.name}-acm_cert"
   }
 }
-data "aws_route53_zone" "acp-zone" {
+data "aws_route53_zone" "acp_zone" {
   name         = var.domain
   private_zone = false
 }
@@ -196,30 +238,30 @@ data "aws_route53_zone" "acp-zone" {
 # Fetch DNS Validation Records for ACM Certificate
 resource "aws_route53_record" "acm_validation_record" {
   for_each = {
-    for dvo in aws_acm_certificate.acm-cert.domain_validation_options : dvo.domain_name => {
+    for dvo in aws_acm_certificate.acm_cert.domain_validation_options : dvo.domain_name => {
       name   = dvo.resource_record_name
       record = dvo.resource_record_value
       type   = dvo.resource_record_type
     }
   }
   # Create DNS Validation Record for ACM Certificate
-  zone_id         = data.aws_route53_zone.acp-zone.zone_id
+  zone_id         = data.aws_route53_zone.acp_zone.zone_id
   allow_overwrite = true
   name            = each.value.name
   type            = each.value.type
   ttl             = 60
   records         = [each.value.record]
-  depends_on      = [aws_acm_certificate.acm-cert]
+  depends_on      = [aws_acm_certificate.acm_cert]
 }
 # Validate the ACM Certificate after DNS Record Creation
 resource "aws_acm_certificate_validation" "cert_validation" {
-  certificate_arn         = aws_acm_certificate.acm-cert.arn
+  certificate_arn         = aws_acm_certificate.acm_cert.arn
   validation_record_fqdns = [for record in aws_route53_record.acm_validation_record : record.fqdn]
-  depends_on              = [aws_acm_certificate.acm-cert]
+  depends_on              = [aws_acm_certificate.acm_cert]
 }
 
 # Create Security group for the jenkins elb
-resource "aws_security_group" "jenkins-elb-sg" {
+resource "aws_security_group" "jenkins_elb_sg" {
   name        = "${local.name}-jenkins-elb-sg"
   description = "Allow HTTPS"
   vpc_id      = aws_vpc.vpc.id
@@ -243,7 +285,7 @@ resource "aws_security_group" "jenkins-elb-sg" {
 # Create elastic Load Balancer for Jenkins
 resource "aws_elb" "elb_jenkins" {
   name            = "elb-jenkins"
-  security_groups = [aws_security_group.jenkins-elb-sg.id] 
+  security_groups = [aws_security_group.jenkins_elb_sg.id] 
   subnets         = [ aws_subnet.pub_sub.id ]
 
   listener {
@@ -251,7 +293,7 @@ resource "aws_elb" "elb_jenkins" {
     instance_protocol  = "HTTP"
     lb_port            = 443
     lb_protocol        = "HTTPS"
-    ssl_certificate_id = aws_acm_certificate.acm-cert.arn
+    ssl_certificate_id = aws_acm_certificate.acm_cert.arn
   }
   health_check {
     healthy_threshold   = 3
@@ -305,15 +347,15 @@ data "aws_ami" "ubuntu" {
 #   }
 # }
 # create a vault server
-resource "aws_instance" "vault" {
+resource "aws_instance" "vault_server" {
   ami                         = data.aws_ami.ubuntu.id           
   instance_type               = "t2.medium"                      
-  subnet_id                   = aws_subnet.pub_sub.id           
+  subnet_id                   =    aws_subnet.pub_sub.id     
   vpc_security_group_ids      = [aws_security_group.vault_sg.id] 
   key_name               = aws_key_pair.keypair.key_name
   associate_public_ip_address = true                             
-  iam_instance_profile = aws_iam_instance_profile.vault_ssm_profile.name
-  root_block_device {
+  iam_instance_profile = data.aws_iam_instance_profile.vault_ssm_profile.name
+  root_block_device {  
     volume_size = 20
     volume_type = "gp3"
     encrypted   = true
@@ -367,7 +409,7 @@ resource "aws_security_group" "vault_sg" {
 
 #creating and attaching an IAM role with SSM permissions to the vault instance.
 resource "aws_iam_role" "vault_ssm_role" {
-  name = "${local.name}-ssm-vault-role2"
+  name = "${local.name}-ssm-vault-role"
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
     Statement = [{
@@ -402,9 +444,12 @@ resource "aws_iam_role_policy" "kms_policy" {
 }
 #Attach the AmazonSSMManagedInstanceCore policy
 # — required for Session Manager and SSM Agent functionality.
-resource "aws_iam_role_policy_attachment" "vault_ssm_attachment" {
-  role       = aws_iam_role.vault_ssm_role.id
-  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+# resource "aws_iam_role_policy_attachment" "vault_ssm_attachment" {
+#   role       = aws_iam_role.vault_ssm_role.id
+#   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+# }
+data "aws_iam_instance_profile" "vault_ssm_profile" {
+  name = "odochi-ssm-vault-instance-profile"
 }
 # create instance profile for vault
 resource "aws_iam_instance_profile" "vault_ssm_profile" {
@@ -446,7 +491,7 @@ resource "aws_elb" "vault_elb" {
     instance_protocol  = "http"
     lb_port            = 443
     lb_protocol        = "https"
-    ssl_certificate_id = aws_acm_certificate.acm-cert.arn
+    ssl_certificate_id = aws_acm_certificate.acm_cert.arn
   }
 
   health_check {
@@ -456,7 +501,7 @@ resource "aws_elb" "vault_elb" {
     healthy_threshold   = 2
     unhealthy_threshold = 2
   }
-  instances = [aws_instance.vault.id]
+  instances = [aws_instance.vault_server.id]
 
   depends_on = [aws_acm_certificate_validation.cert_validation]
   tags = {
@@ -465,8 +510,8 @@ resource "aws_elb" "vault_elb" {
 }
 
 # Create Route 53 record for vault server
-resource "aws_route53_record" "vault-record" {
-  zone_id = data.aws_route53_zone.acp-zone.id
+resource "aws_route53_record" "vault_record" {
+  zone_id = data.aws_route53_zone.acp_zone.id
   name    = "vault.${var.domain}"
   type    = "A"
   alias {
@@ -478,7 +523,7 @@ resource "aws_route53_record" "vault-record" {
 
 # Create Route 53 record for jenkins server
 resource "aws_route53_record" "jenkins" {
-  zone_id = data.aws_route53_zone.acp-zone.id
+  zone_id = data.aws_route53_zone.acp_zone.id
   name    = "jenkins.${var.domain}"
   type    = "A"
   alias {
@@ -488,12 +533,12 @@ resource "aws_route53_record" "jenkins" {
   }
 }
 
-resource "aws_iam_role_policy_attachment" "ssm_core_jenkins" {
-  role       = aws_iam_role.jenkins_ec2_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
-}
+# resource "aws_iam_role_policy_attachment" "ssm_core_jenkins" {
+#   role       = aws_iam_role.jenkins_ec2_role.name
+#   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+# }
 
-resource "aws_iam_role_policy_attachment" "admin_access_jenkins" {
-  role       = aws_iam_role.jenkins_ec2_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
-}
+# resource "aws_iam_role_policy_attachment" "admin_access_jenkins" {
+#   role       = aws_iam_role.jenkins_ec2_role.name
+#   policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
+# }

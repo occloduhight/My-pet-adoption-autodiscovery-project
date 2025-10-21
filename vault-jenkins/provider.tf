@@ -18,7 +18,7 @@ provider "aws" {
 
 terraform {
   backend "s3" {
-    bucket  = "auto-discovery-odochi2025"
+    bucket  = "auto-discovery-odo2025"
     key     = "vault-jenkins/terraform.tfstate"
     region  = "eu-west-3"
     profile = "default"
