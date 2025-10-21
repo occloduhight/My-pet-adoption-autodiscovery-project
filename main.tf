@@ -23,10 +23,34 @@ locals {
 
 # Call the VPC module
 module "vpc" {
-  source = "./vpc"
+  source = "./module/vpc"   
 
-  name = var.name
+  name  = var.name
   region = var.region
-  az1 = var.az1
-  az2 = var.az2
+  az1   = var.az1
+  az2   = var.az2
+}
+
+# module "bastion" {
+#   source  = "./module/bastion"   
+#   name    = var.name
+#   vpc     = module.vpc.vpc_id
+#   subnets = module.vpc.public_subnets
+#   keypair = module.vpc.public_key
+#   privatekey = module.vpc.private_key
+#   nr_key    = var.nr_key
+#   nr_acc_id = var.nr_acc_id
+#   region    = var.region
+# }
+
+module "bastion" {
+  source  = "./module/bastion"  
+  name       = var.name
+  vpc        = module.vpc.vpc_id
+  subnets    = module.vpc.public_subnets
+  keypair    = module.vpc.public_key
+  privatekey = module.vpc.private_key
+  nr_key     = var.nr_key
+  nr_acc_id  = var.nr_acc_id
+  region     = var.region
 }
