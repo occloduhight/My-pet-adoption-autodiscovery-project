@@ -354,7 +354,7 @@ resource "aws_instance" "vault_server" {
   vpc_security_group_ids      = [aws_security_group.vault_sg.id] 
   key_name               = aws_key_pair.keypair.key_name
   associate_public_ip_address = true                             
-  iam_instance_profile = data.aws_iam_instance_profile.vault_ssm_profile.name
+  iam_instance_profile = aws_iam_instance_profile.vault_ssm_profile.name
   root_block_device {  
     volume_size = 20
     volume_type = "gp3"
@@ -448,9 +448,9 @@ resource "aws_iam_role_policy" "kms_policy" {
 #   role       = aws_iam_role.vault_ssm_role.id
 #   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 # }
-data "aws_iam_instance_profile" "vault_ssm_profile" {
-  name = "odochi-ssm-vault-instance-profile"
-}
+# data "aws_iam_instance_profile" "vault_ssm_profile" {
+#   name = "odochi-ssm-vault-instance-profile"
+# }
 # create instance profile for vault
 resource "aws_iam_instance_profile" "vault_ssm_profile" {
   name = "${local.name}-ssm-vault-instance-profile"

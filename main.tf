@@ -1,5 +1,5 @@
 locals {
-  name = "autodiscovery-team-2"
+  name = "autodiscovery-odochi2025"
 }
 
 # data "aws_acm_certificate" "jenkins" {
@@ -21,3 +21,12 @@ locals {
 #   most_recent = true
 # }
 
+# Call the VPC module
+module "vpc" {
+  source = "./vpc"
+
+  name = var.name
+  region = var.region
+  az1 = var.az1
+  az2 = var.az2
+}
