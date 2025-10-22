@@ -277,3 +277,55 @@ module "sonarqube" {
   nr_key        = var.nr_key
   nr_id         = var.nr_acc_id
 }
+# module "stage" {
+#   source = "./module/stage-env"
+#   name = local.name
+#   vpc_id = module.vpc.vpc_id
+#   bastion_sg = module.bastion.bastion_sg
+#   key_name = module.vpc.public_key
+#   pri_subnet1 = module.vpc.pri_sub1_id
+#   pri_subnet2 = module.vpc.pri_sub2_id
+#   pub_subnet1 = module.vpc.pub_sub1_id
+#   pub_subnet2 = module.vpc.pub_sub2_id
+#   acm_cert_arn = data.aws_acm_certificate.jenkins.arn
+#   domain = var.domain
+#   nexus_ip = module.nexus.nexus_ip
+#   nr_key = var.nr_key
+#   nr_id = var.nr-acc-id
+#   ansible_sg = module.ansible.ansible_sg
+# }
+# module "stage" {
+#   source       = "./module/stage-env"
+#   name         = local.name
+#   vpc_id       = module.vpc.vpc_id
+#   bastion_sg   = module.bastion.bastion_sg
+#   ansible_sg   = module.ansible.ansible_sg
+#   key_name     = module.vpc.public_key
+#   pri_subnet1  = module.vpc.pri_sub1_id
+#   pri_subnet2  = module.vpc.pri_sub2_id
+#   pub_subnet1  = module.vpc.pub_sub1_id
+#   pub_subnet2  = module.vpc.pub_sub2_id
+#   acm_cert_arn = data.aws_acm_certificate.jenkins.arn
+#   domain       = var.domain
+#   nexus_ip     = module.nexus.nexus_ip
+#   nr_key       = var.nr_key
+#   nr_id        = var.nr_acc_id
+# }
+
+module "stage" {
+  source = "./module/stage-env"
+  name = local.name
+  vpc_id = module.vpc.vpc_id
+  bastion_sg = module.bastion.bastion_sg
+  key_name = module.vpc.public_key
+  pri_subnet1 = module.vpc.pri_sub1_id
+  pri_subnet2 = module.vpc.pri_sub2_id
+  pub_subnet1 = module.vpc.pub_sub1_id
+  pub_subnet2 = module.vpc.pub_sub2_id
+  acm_cert_arn = aws_acm_certificate_validation.cert_validation.certificate_arn
+  domain = var.domain
+  nexus_ip = module.nexus.nexus_ip
+   nr_key = var.nr_key
+  nr_acct_id = var.nr_acc_id
+  ansible_sg = module.ansible.ansible_sg
+}
