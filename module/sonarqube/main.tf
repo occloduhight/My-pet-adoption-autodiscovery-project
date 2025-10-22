@@ -126,8 +126,8 @@ resource "aws_route53_record" "sonar_record" {
   name    = "sonarqube.${var.domain}"
   type    = "A"
   alias {
-    name                   = aws_elb.elb-sonar.dns_name
-    zone_id                = aws_elb.elb-sonar.zone_id
+    name                   = aws_elb.elb_sonar.dns_name
+    zone_id                = aws_elb.elb_sonar.zone_id
     evaluate_target_health = true
   }
 }
