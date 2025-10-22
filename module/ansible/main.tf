@@ -17,7 +17,7 @@ data "aws_ami" "redhat" {
 }
 
 #Creating ansible security group
-resource "aws_security_group" "ansible-sg" {
+resource "aws_security_group" "ansible_sg" {
   name        = "${var.name}-ansible-sg"
   description = "Allow ssh"
   vpc_id      = var.vpc
@@ -40,7 +40,7 @@ resource "aws_security_group" "ansible-sg" {
 }
 
 # Create Ansible Server
-resource "aws_instance" "ansible-server" {
+resource "aws_instance" "ansible_server" {
   ami                    = data.aws_ami.redhat.id #rehat 
   instance_type          = "t2.micro"
   iam_instance_profile   = aws_iam_instance_profile.ansible_profile.name
@@ -86,12 +86,12 @@ resource "aws_iam_role_policy_attachment" "s3_policy" {
 # Create IAM instance profile for ansible
 resource "aws_iam_instance_profile" "ansible_profile" {
   name = "${var.name}-ansible-profile"
-  role = aws_iam_role.ansible-role.name
+  role = aws_iam_role.ansible_role.name
 }
-resource "null_resource" "ansible-setup" {
-  provisioner "local-exec" {
-    command = <<EOT
-      aws s3 cp --recursive ${path.module}/scripts/ s3://pet-adoption-set25/ansible-scripts/
-    EOT
-  } 
-}
+# resource "null_resource" "ansible_setup" {
+#   provisioner "local-exec" {
+#     command = <<EOT
+#       aws s3 cp --recursive ${path.module}/scripts/ s3://pet-adoption-set25/ansible-scripts/
+#     EOT
+#   } 
+# }
