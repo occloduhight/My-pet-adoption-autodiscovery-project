@@ -248,3 +248,32 @@ module "ansible" {
   nr_key      = var.nr_key
   bastion_sg  = module.bastion.bastion_sg
 }
+
+# module "sonarqube" {
+#   source = "./module/sonarqube"
+#   name = local.name
+#   key = module.vpc.public_key
+#   subnet_id = module.vpc.pub_sub1_id
+#   bastion_sg = module.bastion.bastion_sg
+#   vpc_id = module.vpc.vpc_id
+#   domain = var.domain
+#   public_subnets = [module.vpc.pub_sub1_id, module.vpc.pub_sub2_id]
+#   # acm_certificate_arn = data.aws_acm_certificate.jenkins.arn
+#   certificate = aws_acm_certificate_validation.cert_validation.certificate_arn
+#   nr_key = var.nr_key
+#   nr_id = var.nr_acc_id
+# }
+
+module "sonarqube" {
+  source        = "./module/sonarqube"
+  name          = local.name
+  key           = module.vpc.public_key
+  subnet_id     = module.vpc.pub_sub1_id
+  bastion_sg    = module.bastion.bastion_sg
+  vpc_id        = module.vpc.vpc_id
+  domain        = var.domain
+  subnets = [module.vpc.pub_sub1_id, module.vpc.pub_sub2_id]
+  acm_certificate_arn  = aws_acm_certificate_validation.cert_validation.certificate_arn
+  nr_key        = var.nr_key
+  nr_id         = var.nr_acc_id
+}
