@@ -22,7 +22,6 @@ sudo dnf install -y https://s3.eu-west-1.amazonaws.com/amazon-ssm-eu-west-1/late
 curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/linux_64bit/session-manager-plugin.rpm" -o "session-manager-plugin.rpm"
 sudo yum install -y session-manager-plugin.rpm
 
-
 # 2. Add nexus user
 echo "Adding nexus user..."
 sudo useradd -r -M -d ${NEXUS_INSTALL_DIR} -s /bin/false ${NEXUS_USER} || true

@@ -139,6 +139,12 @@ data "terraform_remote_state" "vault" {
     region = "eu-west-3"
   }
 }
+# 
+data "aws_acm_certificate" "jenkins" {
+  domain      = "odochidevops.space"
+  most_recent = true
+  statuses    = ["ISSUED"]
+}
 
 # ---------------------------
 # VPC Module
@@ -215,40 +221,37 @@ module "bastion" {
   region     = var.region
 }
 
-# ---------------------------
-# Nexus Module
-# ---------------------------
-module "nexus" {
+
+
+  module "nexus" {
   source = "./module/nexus"
+  name = local.name
+  vpc = module.vpc.vpc_id
+  keypair = module.vpc.public_key
+  subnet_id = module.vpc.pub_sub2_id
+   certificate = data.aws_acm_certificate.jenkins.arn
+   acm_cert_arn = data.aws_acm_certificate.jenkins.arn
+  domain = var.domain
+  subnets = [module.vpc.pub_sub1_id, module.vpc.pub_sub2_id]
 
-  name        = local.name
-  vpc         = module.vpc.vpc_id
-  keypair     = module.vpc.public_key
-  subnet_id   = module.vpc.pub_sub2_id
-  subnets     = [module.vpc.pub_sub1_id, module.vpc.pub_sub2_id]
-  certificate = aws_acm_certificate_validation.cert_validation.certificate_arn
-  domain      = var.domain
 
-  # Fetch Jenkins instance ID from vault-jenkins remote state
-  jenkins_instance_id = data.terraform_remote_state.vault.outputs.jenkins_instance_id
+  # # Fetch Jenkins instance ID from vault-jenkins remote state
+  # jenkins_instance_id = data.terraform_remote_state.vault.outputs.jenkins_instance_id
 }
 
-# ---------------------------
-# Ansible Module
-# ---------------------------
+
 module "ansible" {
   source      = "./module/ansible"
   name        = local.name
-  private_key = module.vpc.private_key
   keypair     = module.vpc.public_key
   subnet_id   = module.vpc.pri_sub1_id
-  nexus_ip    = ""  # Fill if needed
   vpc         = module.vpc.vpc_id
-  nr_acc_id   = var.nr_acc_id
+  bastion_sg     = module.bastion.bastion_sg
+  private_key = module.vpc.private_key
+  nexus_ip    = module.nexus.nexus_ip
   nr_key      = var.nr_key
-  bastion_sg  = module.bastion.bastion_sg
+  nr_acc_id   = var.nr_acc_id
 }
-
 # module "sonarqube" {
 #   source = "./module/sonarqube"
 #   name = local.name
@@ -265,67 +268,55 @@ module "ansible" {
 # }
 
 module "sonarqube" {
-  source        = "./module/sonarqube"
-  name          = local.name
-  key           = module.vpc.public_key
-  subnet_id     = module.vpc.pub_sub1_id
-  bastion_sg    = module.bastion.bastion_sg
-  vpc_id        = module.vpc.vpc_id
-  domain        = var.domain
-  subnets = [module.vpc.pub_sub1_id, module.vpc.pub_sub2_id]
-  acm_certificate_arn  = aws_acm_certificate_validation.cert_validation.certificate_arn
-  nr_key        = var.nr_key
-  nr_id         = var.nr_acc_id
+  source              = "./module/sonarqube"
+  name                = local.name
+  key                 = module.vpc.public_key
+  subnet_id           = module.vpc.pub_sub1_id
+  bastion_sg          = module.bastion.bastion_sg
+  vpc_id              = module.vpc.vpc_id
+  domain              = var.domain
+  subnets             = [module.vpc.pub_sub1_id, module.vpc.pub_sub2_id]
+  acm_certificate_arn = aws_acm_certificate_validation.cert_validation.certificate_arn
+  acm_cert_arn = data.aws_acm_certificate.jenkins.arn
+  nr_key              = var.nr_key
+  nr_id               = var.nr_acc_id
 }
-# module "stage" {
-#   source = "./module/stage-env"
-#   name = local.name
-#   vpc_id = module.vpc.vpc_id
-#   bastion_sg = module.bastion.bastion_sg
-#   key_name = module.vpc.public_key
-#   pri_subnet1 = module.vpc.pri_sub1_id
-#   pri_subnet2 = module.vpc.pri_sub2_id
-#   pub_subnet1 = module.vpc.pub_sub1_id
-#   pub_subnet2 = module.vpc.pub_sub2_id
-#   acm_cert_arn = data.aws_acm_certificate.jenkins.arn
-#   domain = var.domain
-#   nexus_ip = module.nexus.nexus_ip
-#   nr_key = var.nr_key
-#   nr_id = var.nr-acc-id
-#   ansible_sg = module.ansible.ansible_sg
-# }
-# module "stage" {
-#   source       = "./module/stage-env"
-#   name         = local.name
-#   vpc_id       = module.vpc.vpc_id
-#   bastion_sg   = module.bastion.bastion_sg
-#   ansible_sg   = module.ansible.ansible_sg
-#   key_name     = module.vpc.public_key
-#   pri_subnet1  = module.vpc.pri_sub1_id
-#   pri_subnet2  = module.vpc.pri_sub2_id
-#   pub_subnet1  = module.vpc.pub_sub1_id
-#   pub_subnet2  = module.vpc.pub_sub2_id
-#   acm_cert_arn = data.aws_acm_certificate.jenkins.arn
-#   domain       = var.domain
-#   nexus_ip     = module.nexus.nexus_ip
-#   nr_key       = var.nr_key
-#   nr_id        = var.nr_acc_id
-# }
 
-module "stage" {
-  source = "./module/stage-env"
+module "stage-env" {
+  source       = "./module/stage-env"
+  name         = local.name
+  vpc_id       = module.vpc.vpc_id
+  bastion_sg   = module.bastion.bastion_sg
+  key_name     = module.vpc.public_key
+  pri_sub1     = module.vpc.pri_sub1_id
+  pri_sub2     = module.vpc.pri_sub2_id
+  pub_sub1     = module.vpc.pub_sub1_id
+  pub_sub2     = module.vpc.pub_sub2_id
+  # acm_cert_arn = data.aws_acm_certificate.cert.arn
+  #  acm_cert_arn = aws_acm_certificate_validation.cert_validation.certificate_arn
+   acm_cert_arn = data.aws_acm_certificate.jenkins.arn
+  domain       = var.domain
+  nexus_ip     = module.nexus.nexus_ip
+  nr_key       = var.nr_key
+  nr_acct_id   = var.nr_acc_id
+  ansible_sg     = module.ansible.ansible_sg
+}
+
+
+module "prod" {
+  source = "./module/prod-env"
   name = local.name
   vpc_id = module.vpc.vpc_id
   bastion_sg = module.bastion.bastion_sg
   key_name = module.vpc.public_key
-  pri_subnet1 = module.vpc.pri_sub1_id
-  pri_subnet2 = module.vpc.pri_sub2_id
-  pub_subnet1 = module.vpc.pub_sub1_id
-  pub_subnet2 = module.vpc.pub_sub2_id
-  acm_cert_arn = aws_acm_certificate_validation.cert_validation.certificate_arn
+  pri_sub1 = module.vpc.pri_sub1_id
+  pri_sub2 = module.vpc.pri_sub2_id
+  pub_sub1 = module.vpc.pub_sub1_id
+  pub_sub2 = module.vpc.pub_sub2_id
+  acm_cert_arn = data.aws_acm_certificate.jenkins.arn
   domain = var.domain
   nexus_ip = module.nexus.nexus_ip
-   nr_key = var.nr_key
+  nr_key = var.nr_key
   nr_acct_id = var.nr_acc_id
   ansible_sg = module.ansible.ansible_sg
 }

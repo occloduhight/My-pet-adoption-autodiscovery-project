@@ -8,6 +8,6 @@ terraform {
     key          = "infrastructure/terraform.tfstate" # Path in the bucket for state
     region       = "eu-west-3"
     encrypt      = true
-    use_lockfile = true                               # Explicitly enable lockfile
+    use_lockfile = true # Explicitly enable lockfile
   }
 }

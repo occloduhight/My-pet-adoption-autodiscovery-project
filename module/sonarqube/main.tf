@@ -14,7 +14,7 @@ data "aws_ami" "ubuntu" {
 
 # Load user data script from file
 resource "aws_instance" "sonarqube_server" {
-  ami                         = data.aws_ami.ubuntu.id # ubuntu in eu-west-2
+  ami                         = data.aws_ami.ubuntu.id # ubuntu in eu-west-3
   instance_type               = "t2.medium"
   key_name                    = var.key
   subnet_id                   = var.subnet_id
@@ -27,7 +27,7 @@ resource "aws_instance" "sonarqube_server" {
     encrypted   = true  # Enable encryption (best practice)
   }
   tags = {
-    Name = "${var.name}-sonarqube-server2"
+    Name = "${var.name}-sonarqube-server"
   }
 }
 
@@ -57,7 +57,7 @@ resource "aws_security_group" "sonarqube_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
   tags = {
-    Name = "${var.name}-sonarqu-sg"
+    Name = "${var.name}--sonarqube-sg"
   }
 }
 

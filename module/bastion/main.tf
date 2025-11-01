@@ -37,13 +37,13 @@ resource "aws_iam_instance_profile" "bastion_ssm_profile" {
   role = aws_iam_role.bastion_ssm_role.name
 }
 
-# Get the latest Red Hat AMI
-data "aws_ami" "redhat" {
+# Ubuntu AMI lookup
+data "aws_ami" "ubuntu" {
   most_recent = true
-  owners      = ["309956199498"] # Red Hat official owner
+  owners      = ["099720109477"] # Canonical
   filter {
     name   = "name"
-    values = ["RHEL-9.*x86_64*"]
+    values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
   }
   filter {
     name   = "virtualization-type"
@@ -54,7 +54,7 @@ data "aws_ami" "redhat" {
 # Launch Template
 resource "aws_launch_template" "bastion_lt" {
   name_prefix   = "${var.name}-bastion-"
-  image_id      = data.aws_ami.redhat.id
+  image_id      = data.aws_ami.ubuntu.id
   instance_type = "t2.micro"
   key_name      = var.keypair
 

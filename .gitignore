@@ -4,7 +4,7 @@
 # .tfstate files
 *.tfstate
 *.tfstate.*
-
+*.terraform.*
 # Crash log files
 crash.log
 crash.*.log
@@ -22,7 +22,6 @@ override.tf
 override.tf.json
 *_override.tf
 *_override.tf.json
-records.json
 
 # Ignore transient lock info files created by terraform apply
 .terraform.tfstate.lock.info
@@ -36,7 +35,4 @@ records.json
 # Ignore CLI configuration files
 .terraformrc
 terraform.rc
-terraform.tfvars
-terraform.tfstate.backup
-terraform.tfstate
-terraform.lock.hcl
+*.pem
