@@ -55,7 +55,7 @@ resource "local_file" "private_key" {
   file_permission = "400"
 }
 resource "aws_key_pair" "public_key" {
-  key_name   = "${local.name}1-key"
+  key_name   = "${local.name}-key"
   public_key = tls_private_key.keypair.public_key_openssh
 }
 # Data source to get the latest RedHat AMI
