@@ -1,18 +1,14 @@
-# Data source to get the latest RedHat AMI
-data "aws_ami" "redhat" {
+# Data source to get the latest Ubuntu AMI
+data "aws_ami" "ubuntu" {
   most_recent = true
-  owners      = ["309956199498"] # RedHat's owner ID
+  owners      = ["099720109477"] # Canonical
   filter {
     name   = "name"
-    values = ["RHEL-9*"]
+    values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
   }
   filter {
     name   = "virtualization-type"
     values = ["hvm"]
-  }
-  filter {
-    name   = "architecture"
-    values = ["x86_64"]
   }
 }
 
@@ -41,7 +37,7 @@ resource "aws_security_group" "ansible_sg" {
 
 # Create Ansible Server
 resource "aws_instance" "ansible_server" {
-  ami                    = data.aws_ami.redhat.id #rehat 
+  ami                    = data.aws_ami.ubuntu.id  
   instance_type          = "t2.micro"
   iam_instance_profile   = aws_iam_instance_profile.ansible_profile.name
   vpc_security_group_ids = [aws_security_group.ansible_sg.id]
@@ -91,7 +87,7 @@ resource "aws_iam_instance_profile" "ansible_profile" {
 # resource "null_resource" "ansible_setup" {
 #   provisioner "local-exec" {
 #     command = <<EOT
-#       aws s3 cp --recursive ${path.module}/scripts/ s3://pet-adoption-set25/ansible-scripts/
+#       aws s3 cp --recursive ${path.module}/scripts/ s3://auto-discovery-odo2025/ansible-scripts/
 #     EOT
 #   } 
 # }

@@ -1,7 +1,7 @@
-#stage security group
-resource "aws_security_group" "stage_sg" {
-  name        = "${var.name}-stage-sg"
-  description = "stage Security group"
+#prod security group
+resource "aws_security_group" "prod_sg" {
+  name        = "${var.name}-prod-sg"
+  description = "prod Security group"
   vpc_id      = var.vpc_id
   ingress {
     description     = "SSH access from bastion"
@@ -15,7 +15,7 @@ resource "aws_security_group" "stage_sg" {
     from_port   = 8080
     to_port     = 8080
     protocol    = "tcp"
-    security_groups = [aws_security_group.stage_elb_sg.id]
+    security_groups = [aws_security_group.prod_elb_sg.id]
   }
   egress {
     description = "Allow all outbound traffic"
@@ -25,14 +25,14 @@ resource "aws_security_group" "stage_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
   tags = {
-    Name = "${var.name}-stage-sg"
+    Name = "${var.name}-prod-sg"
   }
 }
 
-#stage-elb security group
-resource "aws_security_group" "stage_elb_sg" {
-  name        = "${var.name}-stage-elb-sg"
-  description = "stage-elb Security group"
+#prod-elb security group
+resource "aws_security_group" "prod_elb_sg" {
+  name        = "${var.name}-prod-elb-sg"
+  description = "prod-elb Security group"
   vpc_id      = var.vpc_id
   ingress {
     description = "HTTP access from ALB"
@@ -49,7 +49,7 @@ resource "aws_security_group" "stage_elb_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
   tags = {
-    Name = "${var.name}-stage-elb-sg"
+    Name = "${var.name}-prod-elb-sg"
   }
 }
 
@@ -72,20 +72,20 @@ data "aws_ami" "redhat" {
 }
 
 # Create Launch Template
-resource "aws_launch_template" "stage_lnch_tmpl" {
+resource "aws_launch_template" "prod_lnch_tmpl" {
   image_id      = data.aws_ami.redhat.id
-  name_prefix   = "${var.name}-stage-web-tmpl"
+  name_prefix   = "${var.name}-prod-web-tmpl"
   instance_type = "t2.medium"
   key_name      = var.key_name
   # user_data = ""
   network_interfaces {
-    security_groups = [aws_security_group.stage_sg.id]
+    security_groups = [aws_security_group.prod_sg.id]
   }
 }
 
 # Create Auto Scaling Group
-resource "aws_autoscaling_group" "stage_asg_grp" {
-  name                      = "${var.name}-stage-asg"
+resource "aws_autoscaling_group" "prod_asg_grp" {
+  name                      = "${var.name}-prod-asg"
   max_size                  = 3
   min_size                  = 1
   desired_capacity          = 1
@@ -93,23 +93,24 @@ resource "aws_autoscaling_group" "stage_asg_grp" {
   health_check_type         = "EC2"
   force_delete              = true
   launch_template {
-    id      = aws_launch_template.stage_lnch_tmpl.id
+    id      = aws_launch_template.prod_lnch_tmpl.id
     version = "$Latest"
   }
   vpc_zone_identifier = [var.pri_sub1, var.pri_sub2]
-  target_group_arns   = [aws_lb_target_group.stage_target_group.arn]
+  target_group_arns   = [aws_lb_target_group.prod_target_group.arn]
+
   tag {
     key                 = "Name"
-    value               = "${var.name}-stage-asg"
+    value               = "${var.name}-prod-asg"
     propagate_at_launch = true
   }
 }
 
 # Created autoscaling group policy
-resource "aws_autoscaling_policy" "stage_asg_policy" {
-  name                   = "${var.name}-stage-asg-policy2"
+resource "aws_autoscaling_policy" "prod_asg_policy" {
+  name                   = "${var.name}-prod-asg-policy"
   adjustment_type        = "ChangeInCapacity"
-  autoscaling_group_name = aws_autoscaling_group.stage_asg_grp.name
+  autoscaling_group_name = aws_autoscaling_group.prod_asg_grp.name
   policy_type            = "TargetTrackingScaling"
   target_tracking_configuration {
     predefined_metric_specification {predefined_metric_type = "ASGAverageCPUUtilization"}
@@ -117,21 +118,21 @@ resource "aws_autoscaling_policy" "stage_asg_policy" {
   }
 }
 
-# Create Application Load Balancer for stage
-resource "aws_lb" "stage_LB" {
-  name                       = "${var.name}-stage-lb"
+# Create Application Load Balancer for prod
+resource "aws_lb" "prod_LB" {
+  name                       = "${var.name}-prod-lb"
   internal                   = false
   load_balancer_type         = "application"
-  security_groups            = [aws_security_group.stage_elb_sg.id]
+  security_groups            = [aws_security_group.prod_elb_sg.id]
   subnets                    = [var.pub_sub1, var.pub_sub2]
   tags = {
-    Name = "${var.name}-stage-lb"
+    Name = "${var.name}-prod-lb"
   }
 }
 
 #Create Target group for load Balancer
-resource "aws_lb_target_group" "stage_target_group" {
-  name        = "${var.name}-stage-tg"
+resource "aws_lb_target_group" "prod_target_group" {
+  name        = "${var.name}-prod-tg"
   port        = 8080
   protocol    = "HTTP"
   vpc_id      = var.vpc_id
@@ -144,13 +145,13 @@ resource "aws_lb_target_group" "stage_target_group" {
     path                = "/"
   }
   tags = {
-    Name = "${var.name}-stage-tg"
+    Name = "${var.name}-prod-tg"
   }
 }
 
 # Create load balancer listener for http
-resource "aws_lb_listener" "stage_load_balancer_listener_http" {
-  load_balancer_arn = aws_lb.stage_LB.arn
+resource "aws_lb_listener" "prod_load_balancer_listener_http" {
+  load_balancer_arn = aws_lb.prod_LB.arn
   port              = "80"
   protocol          = "HTTP"
   default_action {
@@ -164,32 +165,32 @@ resource "aws_lb_listener" "stage_load_balancer_listener_http" {
 }
 
 # Create load balancer listener for https
-resource "aws_lb_listener" "stage_load_balancer_listener_https" {
-  load_balancer_arn = aws_lb.stage_LB.arn
+resource "aws_lb_listener" "prod_load_balancer_listener_https" {
+  load_balancer_arn = aws_lb.prod_LB.arn
   port              = "443"
   protocol          = "HTTPS"
   ssl_policy        = "ELBSecurityPolicy-2016-08"
   certificate_arn   = var.acm_cert_arn
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.stage_target_group.arn
+    target_group_arn = aws_lb_target_group.prod_target_group.arn
   }
 }
 
-# Create Route 53 record for stage server
+# Create Route 53 record for prod server
 data "aws_route53_zone" "acp_zone" {
   name         = var.domain
   private_zone = false
 }
 
-# Create Route 53 record for stage server
-resource "aws_route53_record" "stage_record" {
+# Create Route 53 record for prod server
+resource "aws_route53_record" "prod_record" {
   zone_id = data.aws_route53_zone.acp_zone.zone_id
-  name    = "stage.${var.domain}"
+  name    = "prod.${var.domain}"
   type    = "A"
   alias {
-    name                   = aws_lb.stage_LB.dns_name
-    zone_id                = aws_lb.stage_LB.zone_id
+    name                   = aws_lb.prod_LB.dns_name
+    zone_id                = aws_lb.prod_LB.zone_id
     evaluate_target_health = true
   }
 }

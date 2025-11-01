@@ -32,7 +32,7 @@ resource "aws_security_group" "nexus_sg" {
 
 # Creating security group for LoadBalancer
 resource "aws_security_group" "nexus_lb_sg" {
-  name        = "${var.name}-nexus-lb-sg2"
+  name        = "${var.name}-nexus-lb-sg"
   description = "Allow inbound traffic for lb and all outbound traffic"
   vpc_id      = var.vpc
   ingress {
@@ -50,23 +50,19 @@ resource "aws_security_group" "nexus_lb_sg" {
     cidr_blocks = ["0.0.0.0/0"] # Allow outbound to anywhere
   }
   tags = {
-    Name = "${var.name}-nexus-lb-sg2"
+    Name = "${var.name}-nexus-lb-sg"
   }
 }
-# create load balancer for the nexus
+# create loadbalancer for the nexus
 resource "aws_elb" "elb_nexus" {
-  # ELB name must not exceed 32 characters
-  name            = substr("${var.name}-nexus-elb", 0, 32)
-
+  name            = "${var.name}-nexus-elb"
   security_groups = [aws_security_group.nexus_lb_sg.id]
   subnets         = var.subnets
   instances       = [aws_instance.nexus_server.id]
-
-  cross_zone_load_balancing   = true
+  cross_zone_load_balancing = true
   idle_timeout                = 400
   connection_draining         = true
   connection_draining_timeout = 400
-
   listener {
     instance_port      = 8081
     instance_protocol  = "HTTP"
@@ -74,7 +70,6 @@ resource "aws_elb" "elb_nexus" {
     lb_protocol        = "HTTPS"
     ssl_certificate_id = var.certificate
   }
-
   health_check {
     healthy_threshold   = 3
     unhealthy_threshold = 2
@@ -82,10 +77,8 @@ resource "aws_elb" "elb_nexus" {
     timeout             = 5
     target              = "TCP:8081"
   }
-
   tags = {
-    # Keep tag Name readable, truncate if necessary
-    Name = substr("${var.name}-nexus-elb", 0, 32)
+    Name = "${var.name}-nexus-elb"
   }
 }
 
@@ -140,27 +133,22 @@ resource "aws_iam_role_policy_attachment" "ssm_access" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
-# Data source to get the latest red-hat AMI
-data "aws_ami" "centos" {
+# Ubuntu AMI lookup
+data "aws_ami" "ubuntu" {
   most_recent = true
-  owners      = ["125523088429"] # Verified CentOS image owner (check regionally!)
+  owners      = ["099720109477"] # Canonical
   filter {
     name   = "name"
-    values = ["CentOS Stream 9*"]
-  }
-  filter {
-    name   = "architecture"
-    values = ["x86_64"]
+    values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
   }
   filter {
     name   = "virtualization-type"
     values = ["hvm"]
   }
 }
-
 # Create Nexus Server
 resource "aws_instance" "nexus_server" {
-  ami                         = data.aws_ami.centos.id 
+  ami                         = data.aws_ami.ubuntu.id 
   instance_type               = "t2.medium"
   vpc_security_group_ids      = [aws_security_group.nexus_sg.id]
   key_name                    = var.keypair
@@ -173,47 +161,19 @@ resource "aws_instance" "nexus_server" {
   }
 }
 
-# Configure Docker on Jenkins to allow Nexus insecure registry via SSM
-resource "aws_ssm_document" "docker_config" {
-  name          = "${var.name}-docker-config"
-  document_type = "Command"
-
-  content = jsonencode({
-    schemaVersion = "2.2"
-    description   = "Configure Docker to allow Nexus as an insecure registry"
-    mainSteps = [
-      {
-        action = "aws:runShellScript"
-        name   = "configureDocker"
-        inputs = {
-          runCommand = [
-            "sudo mkdir -p /etc/docker",
-            "sudo bash -c 'cat <<EOF > /etc/docker/daemon.json\n{\n  \"insecure-registries\": [\"${aws_instance.nexus_server.private_ip}:8085\"]\n}\nEOF'",
-            "sudo systemctl restart docker"
-          ]
-        }
-      }
-    ]
-  })
-}
-
-# Associate the Docker configuration SSM document with the Jenkins instance
-resource "aws_ssm_association" "docker_config_association" {
-  name = aws_ssm_document.docker_config.name
-
-  # Target the Jenkins instance by its ID (passed from root module)
-  targets {
-    key    = "InstanceIds"
-    # values = [aws_instance.jenkins_server.id]
-    values = [var.jenkins_instance_id]
-
-
-  }
-
-  compliance_severity = "HIGH"   # optional, improves AWS Console visibility
-
-  depends_on = [
-    aws_ssm_document.docker_config,
-    aws_instance.nexus_server
-  ]
-}
+# # copy the nexus ip on the jenkins server
+# resource "null_resource" "update_jenkins_server" {
+#   depends_on = [aws_instance.nexus_server]
+#   provisioner "local-exec" {
+#     command = <<-EOF
+# #!/bin/bash
+# sudo cat <<EOT>> /etc/docker/daemon.json
+#   {
+#     "insecure-registries" : ["${aws_instance.nexus_server.public_ip}:8085"]
+#   }
+# EOT
+# sudo systemctl restart docker
+# EOF
+#   interpreter = [ "bash", "-c" ]
+#   } 
+# }
