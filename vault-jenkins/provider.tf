@@ -3,18 +3,7 @@ provider "aws" {
   profile = "default"
 }
 
-# terraform {
-#     backend "s3" {
-#         bucket = "auto-discovery"
-#         key    = "vault-jenkins/terraform.tfstate"
-#         region = "eu-west-3"
-#         encrypt = true
-#         profile = "default"
-#         encrypt = true
-#         use_lockfile = true
 
-#     }
-# }
 
 terraform {
   backend "s3" {
@@ -23,5 +12,7 @@ terraform {
     region  = "eu-west-3"
     profile = "default"
     encrypt = true
+    use_lockfile = true
   }
 }
+
