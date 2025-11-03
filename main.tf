@@ -23,3 +23,15 @@ module "bastion" {
   nr_acc_id = var.nr_acc_id
   region = var.region
 }
+
+module "sonarqube" {
+  source           = "./module/sonarqube"
+  subnet           = module.vpc.public_subnet_ids[1]
+  name             = local.name
+  key_name         = module.vpc.public_key
+  vpc_id           = module.vpc.vpc_id
+  nr_key = var.nr_key
+  nr_acc_id    = var.nr_acc_id
+  subnets_elb      = [module.vpc.public_subnet_ids[0], module.vpc.public_subnet_ids[1]]
+  domain      = var.domain
+}

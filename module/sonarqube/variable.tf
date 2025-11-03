@@ -1,14 +1,8 @@
-variable "key" {}
+variable "subnet" {}
 variable "name" {}
-variable "subnet_id" {}
-variable "bastion_sg" {}
-variable "subnets" {}
+variable "key_name" {}
 variable "vpc_id" {}
-variable "domain" {}
-variable "acm_cert_arn" {}
 variable "nr_key" {}
-variable "nr_id" {}
-variable "acm_certificate_arn" {
-  
-}
-
+variable "nr_acc_id" {}
+variable "subnets_elb" {}
+variable "domain" {}
