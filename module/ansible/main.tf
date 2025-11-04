@@ -1,24 +1,71 @@
-# Data source to get the latest Ubuntu AMI
-data "aws_ami" "ubuntu" {
+data "aws_ami" "redhat" {
   most_recent = true
-  owners      = ["099720109477"] # Canonical
+  owners      = ["309956199498"] # Red Hat's AWS account ID
   filter {
     name   = "name"
-    values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
-  }
-  filter {
-    name   = "virtualization-type"
-    values = ["hvm"]
+    values = ["RHEL-8.*_HVM-*-x86_64-*-Hourly2-GP2"]
   }
 }
 
-#Creating ansible security group
+# ansible IAM Role and Instance Profile
+resource "aws_iam_role" "ansible_role" {
+  name = "${var.name}-ansible-role"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+      },
+    ]
+  })
+}
+
+# Attach ec2fullaccess policy to the ansible role
+resource "aws_iam_role_policy_attachment" "ansible_role_attachment" {
+  role       = aws_iam_role.ansible_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2FullAccess"
+}
+
+# Attach s3fullaccess policy to the ansible role
+# resource "aws_iam_role_policy_attachment" "ansible_role_attachment2" {
+#   role       = aws_iam_role.ansible_role.name
+#   policy_arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+# }
+
+# Create Instance Profile for ansible EC2
+resource "aws_iam_instance_profile" "ansible_instance_profile" {
+  name = "${var.name}-ansible-instance-profile"
+  role = aws_iam_role.ansible_role.name
+}
+
+# ansible EC2 Instance
+resource "aws_instance" "ansible" {
+  ami                    = data.aws_ami.redhat.id
+  instance_type          = "t2.micro"
+  subnet_id              = var.subnet
+  vpc_security_group_ids = [aws_security_group.ansible_sg.id]
+  key_name               = var.key_name
+  # associate_public_ip_address = false
+  iam_instance_profile   = aws_iam_instance_profile.ansible_instance_profile.name
+  user_data = templatefile("${path.module}/ansible_userdata.sh", {
+    private_key = var.private_key,
+    s3_bucket   = var.s3_bucket,
+    nexus_ip    = var.nexus_ip
+  })
+  tags = {
+    Name = "${var.name}-ansible"
+  }
+}
+
 resource "aws_security_group" "ansible_sg" {
   name        = "${var.name}-ansible-sg"
-  description = "Allow ssh"
-  vpc_id      = var.vpc
+  description = "Allow SSH and HTTP from anywhere"
+  vpc_id      = var.vpc_id
   ingress {
-    description     = "sshport"
     from_port       = 22
     to_port         = 22
     protocol        = "tcp"
@@ -35,59 +82,19 @@ resource "aws_security_group" "ansible_sg" {
   }
 }
 
-# Create Ansible Server
-resource "aws_instance" "ansible_server" {
-  ami                    = data.aws_ami.ubuntu.id  
-  instance_type          = "t2.micro"
-  iam_instance_profile   = aws_iam_instance_profile.ansible_profile.name
-  vpc_security_group_ids = [aws_security_group.ansible_sg.id]
-  key_name               = var.keypair
-  subnet_id              = var.subnet_id
-  user_data              = local.ansible_userdata
-  root_block_device {
-    volume_size = 20
-    volume_type = "gp3"
-    encrypted   = true
-  }
-  metadata_options {http_tokens = "required"}
-  tags = {
-    Name = "${var.name}-ansible-server"
-  }
+# Upload scripts to s3 bucket
+resource "aws_s3_object" "stage_bash_script" {
+  bucket = var.s3_bucket
+  key    = "scripts/stage_bash.sh"
+  source = "${path.module}/scripts/stage_bash.sh"
 }
-
-# Create IAM role for ansible
-resource "aws_iam_role" "ansible_role" {
-  name = "${var.name}-ansible-discovery-role-"
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [{
-      Effect = "Allow",
-      Principal = {
-        Service = "ec2.amazonaws.com"
-      },
-      Action = "sts:AssumeRole"
-    }]
-  })
+resource "aws_s3_object" "prod_bash_script" {
+  bucket = var.s3_bucket
+  key    = "scripts/prod_bash.sh"
+  source = "${path.module}/scripts/prod_bash.sh"
 }
-# Attach the EC2 full access policy to the role
-resource "aws_iam_role_policy_attachment" "ec2_policy" {
-  role       = aws_iam_role.ansible_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2FullAccess"
+resource "aws_s3_object" "deployment_yml" {
+  bucket = var.s3_bucket
+  key    = "scripts/deployment.yml"
+  source = "${path.module}/scripts/deployment.yml"
 }
-# Attach S3 full access policy to the role
-resource "aws_iam_role_policy_attachment" "s3_policy" {
-  role       = aws_iam_role.ansible_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
-}
-# Create IAM instance profile for ansible
-resource "aws_iam_instance_profile" "ansible_profile" {
-  name = "${var.name}-ansible-profile"
-  role = aws_iam_role.ansible_role.name
-}
-# resource "null_resource" "ansible_setup" {
-#   provisioner "local-exec" {
-#     command = <<EOT
-#       aws s3 cp --recursive ${path.module}/scripts/ s3://auto-discovery-odo2025/ansible-scripts/
-#     EOT
-#   } 
-# }

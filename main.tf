@@ -49,3 +49,16 @@ module "nexus" {
   region           = local.region
    private_key_pem = module.vpc.private_key_pem
 }
+
+
+module "ansible" {
+  source      = "./module/ansible"
+  name        = local.name
+  subnet      = module.vpc.private_subnet_ids[0]
+  key_name    = module.vpc.public_key
+  vpc_id      = module.vpc.vpc_id
+  private_key = module.vpc.private_key_pem
+  bastion_sg  = module.bastion.bastion_sg
+  nexus_ip    = module.nexus.nexus_ip
+  s3_bucket   = "auto-discovery-odo2025"
+}
