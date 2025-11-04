@@ -1,10 +1,13 @@
 variable "name" {}
-variable "vpc" {}
-variable "keypair" {}
-variable "subnet_id" {}
-variable "certificate" {}
+variable "key_name" {}
+variable "vpc_id" {}
+variable "nr_key" {}
+variable "nr_acc_id" {}
 variable "domain" {}
-variable "subnets" {}
-variable "acm_cert_arn" {
-  
+variable "subnet" {}
+variable "subnets_elb" {}
+variable "region" {}
+variable "private_key_pem" {
+  description = "Private key content from VPC module output"
+  type        = string
 }
