@@ -1,0 +1,11 @@
+variable "name" {}
+variable "key_name" {}
+variable "public_subnets" {}
+variable "private_subnets" {}
+variable "nr_key" {}
+variable "nr_acct_id" {}
+variable "vpc_id" {}
+variable "bastion_sg" {}
+variable "ansible_sg" {}
+variable "domain" {}
+variable "nexus_ip" {}
