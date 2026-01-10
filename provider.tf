@@ -12,13 +12,13 @@ terraform {
   }
 }
 
-# provider "vault" {
-#   token = 
-#   address = "https://vault.odochidevops.space"
-# }
+#  provider "vault" {
+#    token = 
+#    address = "https://vault.odochidevops.space"
+#  }
 
-# data "vault_generic_secret" "database" {
-#   path = "secret/database"
-# }
+#  data "vault_generic_secret" "database" {
+#    path = "secret/database"
+#  }
 
 

@@ -31,10 +31,10 @@ resource "aws_iam_role_policy_attachment" "ansible_role_attachment" {
 }
 
 # Attach s3fullaccess policy to the ansible role
-# resource "aws_iam_role_policy_attachment" "ansible_role_attachment2" {
-#   role       = aws_iam_role.ansible_role.name
-#   policy_arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
-# }
+resource "aws_iam_role_policy_attachment" "ansible_role_attachment2" {
+  role       = aws_iam_role.ansible_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+}
 
 # Create Instance Profile for ansible EC2
 resource "aws_iam_instance_profile" "ansible_instance_profile" {

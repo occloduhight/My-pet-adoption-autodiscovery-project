@@ -3,8 +3,6 @@ provider "aws" {
   profile = "default"
 }
 
-
-
 terraform {
   backend "s3" {
     bucket  = "auto-discovery-odo2025"

@@ -7,7 +7,5 @@ variable "domain" {}
 variable "subnet" {}
 variable "subnets_elb" {}
 variable "region" {}
-variable "private_key_pem" {
-  description = "Private key content from VPC module output"
-  type        = string
-}
+variable "private_key_pem" {}
+ 

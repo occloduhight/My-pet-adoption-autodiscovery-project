@@ -152,9 +152,6 @@ resource "aws_route53_record" "nexus_elb_record" {
   }
 }
 
-
-
-
 resource "aws_ssm_document" "update_jenkins" {
   name          = "${var.name}-update-jenkins-docker-config"
   document_type = "Command"

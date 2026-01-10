@@ -44,7 +44,7 @@ resource "aws_launch_template" "stage_template" {
   key_name      = var.key_name
   user_data = base64encode(templatefile("${path.module}/stage_userdata.sh", {
     nr_key = var.nr_key,
-    nr_acct_id      = var.nr_acct_id,
+    nr_acc_id      = var.nr_acc_id,
     nexus_ip         = var.nexus_ip
   }))
   network_interfaces {

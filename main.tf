@@ -42,7 +42,7 @@ module "nexus" {
   subnet           = module.vpc.public_subnet_ids[0]
   key_name         = module.vpc.public_key
   vpc_id           = module.vpc.vpc_id
- nr_key = var.nr_key
+  nr_key = var.nr_key
   nr_acc_id    = var.nr_acc_id
   subnets_elb      = [module.vpc.public_subnet_ids[0], module.vpc.public_subnet_ids[1]]
   domain     = var.domain
@@ -75,3 +75,32 @@ module "database" {
 }
 
 
+module "stage" {
+  source           = "./module/stage_env"
+  name             = local.name
+  key_name         = module.vpc.public_key
+  public_subnets   = [module.vpc.public_subnet_ids[0], module.vpc.public_subnet_ids[1]]
+  private_subnets  = [module.vpc.private_subnet_ids[0], module.vpc.private_subnet_ids[1]]
+  nr_key = var.nr_key
+  nr_acc_id    = var.nr_acc_id
+  vpc_id           = module.vpc.vpc_id
+  bastion_sg       = module.bastion.bastion_sg
+  ansible_sg       = module.ansible.ansible_sg
+  domain      = var.domain
+  nexus_ip         = module.nexus.nexus_ip
+}
+
+module "prod" {
+  source           = "./module/prod_env"
+  name             = local.name
+  key_name         = module.vpc.public_key
+  public_subnets   = [module.vpc.public_subnet_ids[0], module.vpc.public_subnet_ids[1]]
+  private_subnets  = [module.vpc.private_subnet_ids[0], module.vpc.private_subnet_ids[1]]
+  nr_key = var.nr_key
+  nr_acc_id    = var.nr_acc_id
+  vpc_id           = module.vpc.vpc_id
+  bastion_sg       = module.bastion.bastion_sg
+  ansible_sg       = module.ansible.ansible_sg
+  domain      = var.domain
+  nexus_ip         = module.nexus.nexus_ip
+}
