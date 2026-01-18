@@ -1,106 +1,130 @@
  locals {
-   name = "autodisc-infra"
-region = "eu-west-3"
- }
+  name ="app"
+}
 
-
+data "aws_acm_certificate" "jenkins" {
+  domain   = "*.odochidevops.space"
+  statuses = ["ISSUED"]
+  most_recent = true
+}
 
 module "vpc" {
   source      = "./module/vpc"
   name        = local.name
-  key_name    = "${local.name}-key"
-  private_key = "${local.name}-key.pem"
 }
+
+
+# module "vpc" {
+# source = "./module/vpc"
+# name = local.name
+# key_name = "${local.name}-key"
+# private_key = "${local.name}-key.pem"
+# }
 
 module "bastion" {
-  source           = "./module/bastion"
-  name             = local.name
-  key_name         = module.vpc.public_key
-  vpc_id           = module.vpc.vpc_id
-  subnet           = [module.vpc.public_subnet_ids[0], module.vpc.public_subnet_ids[1]]
-  private_key      = module.vpc.private_key_pem
-  nr_key = var.nr_key
-  nr_acc_id = var.nr_acc_id
-  region = var.region
+  source      = "./module/bastion"
+  name        = local.name
+  key_name    = module.vpc.public_key
+  subnets     = module.vpc.public_subnet_ids
+  private_key = module.vpc.private_key
+  vpc_id      = module.vpc.vpc_id
+  nr_key     = var.nr_key
+  nr_acc_id  = var.nr_acc_id
+  
 }
-
-module "sonarqube" {
-  source           = "./module/sonarqube"
-  subnet           = module.vpc.public_subnet_ids[1]
-  name             = local.name
-  key_name         = module.vpc.public_key
-  vpc_id           = module.vpc.vpc_id
-  nr_key = var.nr_key
-  nr_acc_id    = var.nr_acc_id
-  subnets_elb      = [module.vpc.public_subnet_ids[0], module.vpc.public_subnet_ids[1]]
-  domain      = var.domain
-}
-
 module "nexus" {
-  source           = "./module/nexus"
-  name             = local.name
-  subnet           = module.vpc.public_subnet_ids[0]
-  key_name         = module.vpc.public_key
-  vpc_id           = module.vpc.vpc_id
-  nr_key = var.nr_key
-  nr_acc_id    = var.nr_acc_id
-  subnets_elb      = [module.vpc.public_subnet_ids[0], module.vpc.public_subnet_ids[1]]
-  domain     = var.domain
-  region           = local.region
-   private_key_pem = module.vpc.private_key_pem
-}
+  source      = "./module/nexus"
 
+  name        = local.name
+  vpc_id      = module.vpc.vpc_id          # reference to your VPC module
+  subnet_id   = module.vpc.public_subnets[0]
+  subnet_ids  = module.vpc.public_subnets
+  key_name    = module.vpc.key_name
+  domain_name = var.domain_name
+  nr_key      = var.nr_key
+  nr_acc_id   = var.nr_acc_id
+}
 
 module "ansible" {
-  source      = "./module/ansible"
-  name        = local.name
-  subnet      = module.vpc.private_subnet_ids[0]
-  key_name    = module.vpc.public_key
-  vpc_id      = module.vpc.vpc_id
-  private_key = module.vpc.private_key_pem
-  bastion_sg  = module.bastion.bastion_sg
-  nexus_ip    = module.nexus.nexus_ip
-  s3_bucket   = "auto-discovery-odo2025"
+  source = "./module/ansible"
+
+  name             = local.name
+  vpc_id           = module.vpc.vpc_id       # from your VPC module
+  subnet_id        = module.vpc.public_subnets
+  key_name         = module.vpc.key_name
+  private_key      = module.vpc.private_key_path
+  nr_key           = var.nr_key
+  nr_acc_id        = var.nr_acc_id
+  s3_bucket_name   = var.s3_bucket_name
+  nexus_ip         = module.nexus.nexus_instance_private_ip            # e.g., module.nexus.nexus_instance_private_ip
+}
+module "prod_sg" {
+  source = "./module/prod_sg"
+
+  name              = local.name
+  vpc_id            = module.vpc.vpc_id
+  public_subnets    = module.vpc.public_subnets
+  private_subnets   = module.vpc.private_subnets
+  key_name          = module.vpc.key_name
+  bastion_sg        = module.bastion.bastion_sg_id
+  ansible_sg        = module.ansible.ansible_sg_id
+  nexus_ip          = module.nexus.nexus_instance_private_ip
+  nr_key           = var.nr_key
+  nr_acc_id        = var.nr_acc_id
+  certificate_arn   = var.certificate_arn
+  domain_name       = var.domain_name
+}
+
+
+module "stage_asg" {
+  source = "./module/stage_asg"
+
+  name              = local.name
+  vpc_id            = module.vpc.vpc_id
+  public_subnets    = module.vpc.public_subnets
+  private_subnets   = module.vpc.private_subnets
+  key_name          = module.vpc.key_name
+  bastion_sg        = module.bastion.bastion_sg_id
+  ansible_sg        = module.ansible.ansible_sg_id
+  nexus_ip          = module.nexus.nexus_instance_private_ip
+  nr_key           = var.nr_key
+  nr_acc_id        = var.nr_acc_id
+  certificate_arn   = var.certificate_arn
+  domain_name       = var.domain_name
+}
+
+# module "sonar" {
+#   source = "./module/sona"
+
+#   name            = local.name
+#   vpc_id          = module.vpc.vpc_id
+#   public_subnets  = module.vpc.public_subnets
+#   subnet_id       = module.vpc.public_subnets[0]
+#   key_name        = module.vpc.key_name
+#   certificate_arn = var.certificate_arn
+#   domain_name     = var.domain_name
+# }
+
+module "sonar" {
+  source = "./module/sonar"
+  name      = local.name
+  vpc_id    = module.vpc.vpc_id
+  subnet_id = module.vpc.public_subnet_ids[1]
+   key_name          = module.vpc.key_name
+  domain_name = var.domain_name
+  public_subnets = [module.vpc.public_subnet_ids[0], module.vpc.public_subnet_ids[1]]
+  nr_key           = var.nr_key
+  nr_acc_id        = var.nr_acc_id
 }
 
 module "database" {
-  source      = "./module/database"
+  source = "./module/database"
+
   name        = local.name
-  db_subnets  = [module.vpc.private_subnet_ids[0], module.vpc.private_subnet_ids[1]]
   vpc_id      = module.vpc.vpc_id
-  stage_sg    = module.prod.prod_sg
-  prod_sg     = module.stage.stage_sg
-  db_username = data.vault_generic_secret.database.data["username"]
-  db_password = data.vault_generic_secret.database.data["password"]
-}
-
-
-module "stage" {
-  source           = "./module/stage_env"
-  name             = local.name
-  key_name         = module.vpc.public_key
-  public_subnets   = [module.vpc.public_subnet_ids[0], module.vpc.public_subnet_ids[1]]
-  private_subnets  = [module.vpc.private_subnet_ids[0], module.vpc.private_subnet_ids[1]]
-  nr_key = var.nr_key
-  nr_acc_id    = var.nr_acc_id
-  vpc_id           = module.vpc.vpc_id
-  bastion_sg       = module.bastion.bastion_sg
-  ansible_sg       = module.ansible.ansible_sg
-  domain      = var.domain
-  nexus_ip         = module.nexus.nexus_ip
-}
-
-module "prod" {
-  source           = "./module/prod_env"
-  name             = local.name
-  key_name         = module.vpc.public_key
-  public_subnets   = [module.vpc.public_subnet_ids[0], module.vpc.public_subnet_ids[1]]
-  private_subnets  = [module.vpc.private_subnet_ids[0], module.vpc.private_subnet_ids[1]]
-  nr_key = var.nr_key
-  nr_acc_id    = var.nr_acc_id
-  vpc_id           = module.vpc.vpc_id
-  bastion_sg       = module.bastion.bastion_sg
-  ansible_sg       = module.ansible.ansible_sg
-  domain      = var.domain
-  nexus_ip         = module.nexus.nexus_ip
+  db_subnets  = module.vpc.private_subnets
+  stage_sg    = module.stage.stage_sg_id
+  prod_sg     = module.prod.prod_sg_id
+  db_username = var.db_username
+  db_password = var.db_password
 }
