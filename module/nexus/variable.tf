@@ -1,11 +1,8 @@
 variable "name" {}
-variable "key_name" {}
 variable "vpc_id" {}
-variable "nr_key" {}
+variable "subnet_id" {}
+variable "subnet_ids" {}
+variable "key_name" {}
+variable "domain_name" {}
 variable "nr_acc_id" {}
-variable "domain" {}
-variable "subnet" {}
-variable "subnets_elb" {}
-variable "region" {}
-# variable "private_key_pem" {}
- 
+variable "nr_key" {} 
