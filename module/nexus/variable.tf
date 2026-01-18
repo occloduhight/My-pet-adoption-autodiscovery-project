@@ -7,5 +7,5 @@ variable "domain" {}
 variable "subnet" {}
 variable "subnets_elb" {}
 variable "region" {}
-variable "private_key_pem" {}
+# variable "private_key_pem" {}
  

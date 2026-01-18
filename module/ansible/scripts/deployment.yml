@@ -2,38 +2,38 @@
 - name: Docker Container Deployment Playbook
   hosts: webservers
   become: true
-  vars_files:
-    - /etc/ansible/ansible_variable.yml
+  vars:
+    NEXUS_REPO: "nexus.work-experience2025.buzz"
   
   tasks:
     - name: Stop running container
-      command: docker stop appContainerteam
+      command: docker stop appContainer
       ignore_errors: yes
 
     - name: Remove stopped container
-      command: docker rm appContainerteam
+      command: docker rm appContainer
       ignore_errors: yes
 
     - name: Remove existing image
-      command: docker rmi "{{ NEXUS_IP }}/apppetclinic:latest"
+      command: docker rmi "{{ NEXUS_REPO }}/nexus-docker-repo/apppetclinic:latest"
       ignore_errors: yes
 
     - name: Log into private Nexus registry
       become: yes
       become_user: ec2-user
-      shell: echo "admin123" | docker login "{{ NEXUS_IP }}" -u admin --password-stdin
+      shell: echo "admin123" | docker login "{{ NEXUS_REPO }}" -u admin --password-stdin
 
     - name: Pull latest image from Nexus
       become: yes
       become_user: ec2-user
-      command: docker pull "{{ NEXUS_IP }}/apppetclinic:latest"
+      command: docker pull "{{ NEXUS_REPO }}/nexus-docker-repo/apppetclinic:latest"
 
     - name: Run container
       become: yes
       become_user: ec2-user
       shell: |
         docker run -d \
-          --name appContainerteam \
+          --name appContainer \
           -p 8080:8080 \
           --restart always \
-          "{{ NEXUS_IP }}/apppetclinic:latest"
+          "{{ NEXUS_REPO }}/nexus-docker-repo/apppetclinic:latest"

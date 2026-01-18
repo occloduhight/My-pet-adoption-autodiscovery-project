@@ -1,16 +1,16 @@
 #!/bin/bash
 
 # Script configuration variables
-ASG_NAME="autodisc-infra-stage-asg"               # Auto Scaling Group name
-REGION="eu-west-3"                 # AWS region
+ASG_NAME="petclinic2-stage-asg"               # Auto Scaling Group name
+REGION="us-east-1"                 # AWS region
 INVENTORY_FILE="/etc/ansible/stage_hosts"       # Ansible inventory file
 IP_LIST_FILE="/etc/ansible/stage_ips.txt"  # Temporary file to store discovered IPs
 SSH_USER="ec2-user"               # SSH user for RedHat instances
 SSH_KEY_PATH="/home/ec2-user/.ssh/id_rsa"  # Path to SSH private key
-DOCKER_REPO="nexus.example.com"    # Nexus Docker repository URL
+DOCKER_REPO="nexus.work-experience2025.buzz"    # Nexus Docker repository URL
 DOCKER_USER="admin"        # Docker repository username
 DOCKER_PASSWORD="admin123"    # Docker repository password
-APP_IMAGE="$DOCKER_REPO/apppetclinic:latest"        # Docker image name and tag
+APP_IMAGE="$DOCKER_REPO/nexus-docker-repo/apppetclinic:latest"        # Docker image name and tag
 
 # Function to log messages
 log_message() {
@@ -103,10 +103,10 @@ process_instance() {
     
     # Check if Docker container is running
     container_running=$(ssh -i "$SSH_KEY_PATH" -o ConnectTimeout=10 "$SSH_USER@$ip" \
-        "docker ps --filter name=appContainerteam --format '{{.Names}}' 2>/dev/null")
+        "docker ps --filter name=appContainer --format '{{.Names}}' 2>/dev/null")
     
     if [[ -z "$container_running" ]]; then
-        log_message "Container 'appContainerteam' not found on $ip. Deploying..."
+        log_message "Container 'appContainer' not found on $ip. Deploying..."
         
         # Execute Docker commands remotely with timeout
         ssh -i "$SSH_KEY_PATH" -o ConnectTimeout=10 "$SSH_USER@$ip" << EOF
@@ -114,18 +114,18 @@ process_instance() {
             echo "$DOCKER_PASSWORD" | docker login $DOCKER_REPO -u "$DOCKER_USER" --password-stdin || exit 1
             
             # Pull latest image with timeout
-            timeout 300 docker pull $DOCKER_REPO/$APP_IMAGE || exit 1
+            timeout 300 docker pull $APP_IMAGE || exit 1
             
             # Check for existing container and remove if stopped
-            if docker ps -a | grep -q appContainerteam; then
-                docker rm -f appContainerteam >/dev/null 2>&1
+            if docker ps -a | grep -q appContainer; then
+                docker rm -f appContainer >/dev/null 2>&1
             fi
             
             # Run container
-            docker run -d --name appContainerteam -p 8080:8080 --restart unless-stopped $DOCKER_REPO/$APP_IMAGE || exit 1
+            docker run -d --name appContainer -p 8080:8080 --restart unless-stopped $APP_IMAGE || exit 1
             
             # Verify container is running
-            if docker ps | grep -q appContainerteam; then
+            if docker ps | grep -q appContainer; then
                 echo "Container deployed successfully"
             else
                 echo "Failed to deploy container"
@@ -140,7 +140,7 @@ EOF
             exit_status=1
         fi
     else
-        log_message "Container 'appContainerteam' is already running on $ip"
+        log_message "Container 'appContainer' is already running on $ip"
     fi
     
     return $exit_status
