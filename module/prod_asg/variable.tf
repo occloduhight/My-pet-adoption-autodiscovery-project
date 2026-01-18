@@ -1,0 +1,10 @@
+variable "name" {}
+variable "key" {}
+variable "private_subnets" {}
+variable "vpc_id" {}
+variable "ansible_sg" {}
+variable "bastion_sg" {}
+variable "public_subnets" {}
+variable "domain" {}
+variable "nr_key" {}
+variable "nr_acc_id" {} 
