@@ -9,7 +9,7 @@ resource "aws_security_group" "stage_sg" {
     from_port       = 22
     to_port         = 22
     protocol        = "tcp"
-    security_groups = [var.bastion_sg, var.ansible_sg]
+    security_groups = [var.bastion_sg, var.ansible_sg.id]
   }
 
   ingress {
@@ -17,7 +17,7 @@ resource "aws_security_group" "stage_sg" {
     from_port   = 8080
     to_port     = 8080
     protocol    = "tcp"
-    security_groups = [aws_security_group.stage-elb-sg.id]
+    security_groups = [aws_security_group.stage_elb_sg.id]
   }
   egress {
     description = "Allow all outbound traffic"
@@ -82,7 +82,7 @@ resource "aws_launch_template" "stage_lnch_tmpl" {
   name_prefix   = "${var.name}-stage-web-tmpl"
   instance_type = "t2.medium"
   key_name      = var.key_name
-user_data = base64encode(templatefile("${path.module}/docker-script.sh", {
+user_data = base64encode(templatefile("${path.module}/docker.sh", {
   nexus_ip       = var.nexus_ip,
   nr_key         = var.nr_key,
   nr_acc_id      = var.nr_acc_id,
@@ -106,12 +106,14 @@ resource "aws_autoscaling_group" "stage_autoscaling_grp" {
   health_check_grace_period = 120
   health_check_type         = "EC2"
   force_delete              = true
+
   launch_template {
     id      = aws_launch_template.stage_lnch_tmpl.id
     version = "$Latest"
   }
+
   vpc_zone_identifier = var.private_subnets
-  target_group_arns   = [aws_lb_target_group.stage-target-group.arn]
+  target_group_arns   = [aws_lb_target_group.stage_target_group.arn]
 
   tag {
     key                 = "Name"
@@ -119,6 +121,28 @@ resource "aws_autoscaling_group" "stage_autoscaling_grp" {
     propagate_at_launch = true
   }
 }
+
+# resource "aws_autoscaling_group" "stage_autoscaling_grp" {
+#   name                      = "${var.name}-stage-asg"
+#   max_size                  = 3
+#   min_size                  = 1
+#   desired_capacity          = 1
+#   health_check_grace_period = 120
+#   health_check_type         = "EC2"
+#   force_delete              = true
+#   launch_template {
+#     id      = aws_launch_template.stage_lnch_tmpl.id
+#     version = "$Latest"
+#   }
+#   vpc_zone_identifier = var.private_subnets
+#   target_group_arns   = [aws_lb_target_group.stage-target-group.arn]
+
+#   tag {
+#     key                 = "Name"
+#     value               = "${var.name}-stage-asg"
+#     propagate_at_launch = true
+#   }
+# }
 # Autoscaling Policy
 resource "aws_autoscaling_policy" "stage_asg_policy" {
   name                   = "asg-policy"
@@ -184,7 +208,7 @@ resource "aws_lb_listener" "stage_listener_http" {
 
 # HTTPS Listener
 resource "aws_lb_listener" "stage_listener_https" {
-  load_balancer_arn = aws_lb.stage_LB.arn
+  load_balancer_arn = aws_lb.stage_lb.arn
   port              = 443
   protocol          = "HTTPS"
   ssl_policy        = "ELBSecurityPolicy-2016-08"

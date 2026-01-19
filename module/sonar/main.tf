@@ -90,19 +90,39 @@ resource "aws_iam_instance_profile" "sonar_instance_profile" {
 }
 
 # Data source to get the latest Ubuntu AMI
-data "aws_ami" "ubuntu" {
+data "aws_ami" "latest_ubuntu" {
   most_recent = true
+  owners      = ["099720109477"] # Canonical
 
   filter {
     name   = "name"
     values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
   }
+
   filter {
     name   = "virtualization-type"
     values = ["hvm"]
   }
-  owners = ["099720109477"] # Canonical
+
+  filter {
+    name   = "architecture"
+    values = ["x86_64"]
+  }
 }
+
+# data "aws_ami" "ubuntu" {
+#   most_recent = true
+
+#   filter {
+#     name   = "name"
+#     values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
+#   }
+#   filter {
+#     name   = "virtualization-type"
+#     values = ["hvm"]
+#   }
+#   owners = ["099720109477"] # Canonical
+# }
 
 # Create sonar Server
 resource "aws_instance" "sonar_server" {
@@ -110,13 +130,13 @@ resource "aws_instance" "sonar_server" {
   instance_type               = "t2.medium"
   key_name                    = var.key_name
   subnet_id                   = var.subnet_id
-  vpc_security_group_ids      = [aws_security_group.sonarqube_sg.id]
+  vpc_security_group_ids      = [aws_security_group.sonar_sg.id]
   associate_public_ip_address = true
   iam_instance_profile        = aws_iam_instance_profile.sonar_instance_profile.name
   # User Data Script for all installation and configuration steps
   user_data = templatefile("${path.module}/sonar.sh", {
-    newrelic_api_key    = var.nr_key
-    newrelic_account_id = var.nr_acc_id
+    nr_key    = var.nr_key
+    nr_acc_id = var.nr_acc_id
   })
   tags = {
     Name = "${var.name}-Sonar_Server"
@@ -132,7 +152,8 @@ resource "aws_elb" "elb_sonar" {
     instance_protocol  = "http"
     lb_port            = 443
     lb_protocol        = "https"
-    ssl_certificate_id = data.aws_acm_certificate.acm-cert.arn
+    ssl_certificate_id = var.certificate_arn
+
 
   }
   health_check {
@@ -170,7 +191,13 @@ resource "aws_route53_record" "sonar" {
   }
 }
 # data block to fetch ACM certificate for Sonarqube
-data "aws_acm_certificate" "acm-cert" {
-  domain   = var.domain_name
-  statuses = ["ISSUED"]
-}
+# data "aws_acm_certificate" "acm-cert" {
+#   domain   = var.domain_name
+#   statuses = ["ISSUED"]
+# }
+# data "aws_acm_certificate" "acm-cert" {
+#   domain   = var.domain_name
+#   statuses = ["ISSUED"]
+#   most_recent = true
+# }
+

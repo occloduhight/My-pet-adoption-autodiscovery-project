@@ -9,8 +9,13 @@ variable "s3_bucket_name" {
   type        = string
 }
 
+# variable "certificate_arn" {
+#   description = "Wildcard ACM certificate ARN for *.odochidevops.space"
+#   default     = "arn:aws:acm:eu-west-3:015937138823:certificate/6fd8d6eb-dd5f-493f-89c9-ac911fdf063a"
+# }
 variable "certificate_arn" {
-  description = "Wildcard ACM certificate ARN for *.odochidevops.space"
+  description = "ARN of the ACM certificate for HTTPS"
+  type        = string
   default     = "arn:aws:acm:eu-west-3:015937138823:certificate/6fd8d6eb-dd5f-493f-89c9-ac911fdf063a"
 }
 

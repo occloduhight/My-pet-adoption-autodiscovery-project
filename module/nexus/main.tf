@@ -118,8 +118,8 @@ resource "aws_instance" "nexus" {
   key_name                    = var.key_name
 
   user_data = templatefile("${path.module}/nexus.sh", {
-    newrelic_api_key    = var.nr_key
-    newrelic_account_id = var.nr_acc_id
+    nr_key    = var.nr_key
+    nr_acc_id = var.nr_acc_id
   })
   root_block_device {
     volume_size = 30
@@ -142,7 +142,8 @@ resource "aws_elb" "nexus_elb" {
     instance_protocol  = "http"
     lb_port            = 443
     lb_protocol        = "https"
-    ssl_certificate_id = data.aws_acm_certificate.acm-cert.arn
+    ssl_certificate_id = var.certificate_arn
+
   }
 
   health_check {
@@ -165,10 +166,16 @@ data "aws_route53_zone" "my_hosted_zone" {
 }
 
 # data block to fetch ACM certificate for Nexus
-data "aws_acm_certificate" "acm-cert" {
-  domain   = var.domain_name
-  statuses = ["ISSUED"]
-}
+# data "aws_acm_certificate" "acm-cert" {
+#   domain   = var.domain_name
+#   statuses = ["ISSUED"]
+# }
+# data "aws_acm_certificate" "acm-cert" {
+#   domain   = var.domain_name
+#   statuses = ["ISSUED"]
+#   most_recent = true
+# }
+
 
 # Route53 Record for Nexus Service
 resource "aws_route53_record" "nexus_dns" {

@@ -8,7 +8,7 @@ resource "aws_security_group" "prod_sg" {
     from_port       = 22
     to_port         = 22
     protocol        = "tcp"
-    security_groups = [var.bastion_sg, var.ansible_sg]
+    security_groups = [var.bastion_sg, var.ansible_sg.id]
   }
 
   ingress {
@@ -16,7 +16,7 @@ resource "aws_security_group" "prod_sg" {
     from_port   = 8080
     to_port     = 8080
     protocol    = "tcp"
-    security_groups = [aws_security_group.prod-elb-sg.id]
+    security_groups = [aws_security_group.prod_elb_sg.id]
   }
   egress {
     description = "Allow all outbound traffic"
@@ -58,12 +58,12 @@ resource "aws_launch_template" "prod_lt" {
   key_name      = var.key
 
   user_data = base64encode(templatefile("${path.module}/docker.sh", {
-    newrelic_api_key     = var.nr_key
-    newrelic_account_id = var.nr_acc_id
+    nr_key     = var.nr_key
+    nr_acc_id = var.nr_acc_id
   }))
 
   network_interfaces {
-    security_groups = [aws_security_group.prod-sg.id]
+    security_groups = [aws_security_group.prod_sg.id]
   }
 
   metadata_options {
@@ -81,11 +81,11 @@ resource "aws_autoscaling_group" "prod_autoscaling_grp" {
   health_check_type         = "EC2"
   force_delete              = true
   launch_template {
-    id      = aws_launch_template.prod_lnch_tmpl.id
+    id      = aws_launch_template.prod_lt.id
     version = "$Latest"
   }
   vpc_zone_identifier = var.private_subnets
-  target_group_arns   = [aws_lb_target_group.prod-target-group.arn]
+  target_group_arns   = [aws_lb_target_group.prod-tg.arn]
 
   tag {
     key                 = "Name"
@@ -177,7 +177,7 @@ resource "aws_lb_listener" "prod_load_balancer_listener_https" {
   port              = "443"
   protocol          = "HTTPS"
   ssl_policy        = "ELBSecurityPolicy-2016-08"
-  certificate_arn   = data.aws_acm_certificate.acm-cert.arn
+  certificate_arn   = var.certificate_arn
   default_action {
     type             = "forward"
     target_group_arn = aws_lb_target_group.prod-tg.arn
@@ -185,20 +185,26 @@ resource "aws_lb_listener" "prod_load_balancer_listener_https" {
 }
 # Create Route 53 record for prod server
 data "aws_route53_zone" "acp-zone" {
-  name         = var.domain
+  name         = var.domain_name
   private_zone = false
 }
 
 # data block to fetch ACM certificate for Nexus
-data "aws_acm_certificate" "acm-cert" {
-  domain   = var.domain
-  statuses = ["ISSUED"]
-}
+# data "aws_acm_certificate" "acm-cert" {
+#   domain   = var.domain_name
+#   statuses = ["ISSUED"]
+# }
+# data "aws_acm_certificate" "acm-cert" {
+#   domain   = var.domain_name
+#   statuses = ["ISSUED"]
+#   most_recent = true
+# }
+
 
 # Create Route 53 record for prod server
 resource "aws_route53_record" "prod-record" {
   zone_id = data.aws_route53_zone.acp-zone.zone_id
-  name    = "prod.${var.domain}"
+  name    = "prod.${var.domain_name}"
   type    = "A"
   alias {
     name                   = aws_lb.prod_lb.dns_name
